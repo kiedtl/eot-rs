@@ -225,16 +225,10 @@ unsafe extern "C" fn SwapNodes(
     mut a: ::core::ffi::c_short,
     mut b: ::core::ffi::c_short,
 ) {
-    let mut code: ::core::ffi::c_short = 0;
-    let mut upa: ::core::ffi::c_short = 0;
-    let mut upb: ::core::ffi::c_short = 0;
-    let mut tNode: nodeType = nodeType {
-        up: 0,
-        left: 0,
-        right: 0,
-        code: 0,
-        weight: 0,
-    };
+    
+    
+    
+    
     let mut tree: *mut nodeType = (*t).tree;
     let ROOT: ::core::ffi::c_short = 1 as ::core::ffi::c_short;
     if a as ::core::ffi::c_int != b as ::core::ffi::c_int {} else {
@@ -308,8 +302,8 @@ unsafe extern "C" fn SwapNodes(
                 as *const ::core::ffi::c_char,
         );
     };
-    upa = (*tree.offset(a as isize)).up;
-    upb = (*tree.offset(b as isize)).up;
+    
+    let mut upa:  ::core::ffi::c_short =  (*tree.offset(a as isize)).up;let mut upb:  ::core::ffi::c_short =  (*tree.offset(b as isize)).up;
     if ((*tree.offset(upa as isize)).code as ::core::ffi::c_int)
         < 0 as ::core::ffi::c_int
     {} else {
@@ -368,12 +362,12 @@ unsafe extern "C" fn SwapNodes(
                 as *const ::core::ffi::c_char,
         );
     };
-    tNode = *tree.offset(a as isize);
+    let mut tNode:  nodeType =  *tree.offset(a as isize);
     *tree.offset(a as isize) = *tree.offset(b as isize);
     *tree.offset(b as isize) = tNode;
     (*tree.offset(a as isize)).up = upa;
     (*tree.offset(b as isize)).up = upb;
-    code = (*tree.offset(a as isize)).code;
+    let mut code:  ::core::ffi::c_short =  (*tree.offset(a as isize)).code;
     if (code as ::core::ffi::c_int) < 0 as ::core::ffi::c_int {
         (*tree.offset((*tree.offset(a as isize)).left as isize)).up = a;
         (*tree.offset((*tree.offset(a as isize)).right as isize)).up = a;
@@ -520,9 +514,9 @@ pub unsafe extern "C" fn MTX_AHUFF_Create(
     mut bio: *mut BITIO,
     mut rangeIn: ::core::ffi::c_short,
 ) -> *mut AHUFF {
-    let mut i: ::core::ffi::c_short = 0;
-    let mut limit: ::core::ffi::c_short = 0;
-    let mut range: ::core::ffi::c_short = 0;
+    
+    
+    
     let mut j: ::core::ffi::c_long = 0;
     let ROOT: ::core::ffi::c_short = 1 as ::core::ffi::c_short;
     let mut t: *mut AHUFF = MTX_mem_malloc(
@@ -531,7 +525,7 @@ pub unsafe extern "C" fn MTX_AHUFF_Create(
     ) as *mut AHUFF;
     (*t).mem = mem;
     (*t).bio = bio;
-    range = rangeIn;
+    let mut range:  ::core::ffi::c_short =  rangeIn;
     (*t).range = rangeIn as ::core::ffi::c_long;
     (*t).bitCount = MTX_AHUFF_BitsUsed(
         (rangeIn as ::core::ffi::c_int - 1 as ::core::ffi::c_int) as ::core::ffi::c_long,
@@ -563,9 +557,10 @@ pub unsafe extern "C" fn MTX_AHUFF_Create(
             .wrapping_mul(2 as ::core::ffi::c_ulong)
             .wrapping_mul(range as ::core::ffi::c_ulong),
     ) as *mut nodeType;
-    limit = (2 as ::core::ffi::c_int as ::core::ffi::c_short as ::core::ffi::c_int
-        * range as ::core::ffi::c_int) as ::core::ffi::c_short;
-    i = 2 as ::core::ffi::c_short;
+    
+    let mut limit:  ::core::ffi::c_short =
+     (2 as ::core::ffi::c_int as ::core::ffi::c_short as ::core::ffi::c_int
+        * range as ::core::ffi::c_int) as ::core::ffi::c_short;let mut i:  ::core::ffi::c_short =  2 as ::core::ffi::c_short;
     while (i as ::core::ffi::c_int) < limit as ::core::ffi::c_int {
         (*(*t).tree.offset(i as isize)).up = (i as ::core::ffi::c_int
             / 2 as ::core::ffi::c_int as ::core::ffi::c_short as ::core::ffi::c_int)
@@ -666,10 +661,10 @@ pub unsafe extern "C" fn MTX_AHUFF_WriteSymbolCost(
     mut symbol: ::core::ffi::c_short,
 ) -> ::core::ffi::c_long {
     let mut tree: *mut nodeType = (*t).tree;
-    let mut a: ::core::ffi::c_short = 0;
+    
     let mut sp: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
     let ROOT: ::core::ffi::c_short = 1 as ::core::ffi::c_short;
-    a = *(*t).symbolIndex.offset(symbol as isize);
+    let mut a:  ::core::ffi::c_short =  *(*t).symbolIndex.offset(symbol as isize);
     if (*(*t).tree.offset(a as isize)).code as ::core::ffi::c_int
         == symbol as ::core::ffi::c_int
     {} else {
@@ -696,8 +691,8 @@ pub unsafe extern "C" fn MTX_AHUFF_WriteSymbol(
     mut symbol: ::core::ffi::c_short,
 ) {
     let mut tree: *mut nodeType = (*t).tree;
-    let mut a: ::core::ffi::c_short = 0;
-    let mut aa: ::core::ffi::c_short = 0;
+    
+    
     let mut sp: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
     let mut stackArr: [::core::ffi::c_char; 50] = [0; 50];
     let mut stack: *mut ::core::ffi::c_char = &raw mut stackArr
@@ -705,7 +700,7 @@ pub unsafe extern "C" fn MTX_AHUFF_WriteSymbol(
     let mut bio: *mut BITIO = (*t).bio;
     let mut up: ::core::ffi::c_short = 0;
     let ROOT: ::core::ffi::c_short = 1 as ::core::ffi::c_short;
-    a = *(*t).symbolIndex.offset(symbol as isize);
+    let mut a:  ::core::ffi::c_short =  *(*t).symbolIndex.offset(symbol as isize);
     if (*(*t).tree.offset(a as isize)).code as ::core::ffi::c_int
         == symbol as ::core::ffi::c_int
     {} else {
@@ -717,7 +712,7 @@ pub unsafe extern "C" fn MTX_AHUFF_WriteSymbol(
                 as *const ::core::ffi::c_char,
         );
     };
-    aa = a;
+    let mut aa:  ::core::ffi::c_short =  a;
     loop {
         up = (*tree.offset(a as isize)).up;
         let fresh1 = sp;

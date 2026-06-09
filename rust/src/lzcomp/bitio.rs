@@ -79,8 +79,8 @@ pub unsafe extern "C" fn MTX_BITIO_WriteValue(
     mut value: ::core::ffi::c_ulong,
     mut numberOfBits: ::core::ffi::c_long,
 ) {
-    let mut i: ::core::ffi::c_long = 0;
-    i = numberOfBits - 1 as ::core::ffi::c_long;
+    
+    let mut i:  ::core::ffi::c_long =  numberOfBits - 1 as ::core::ffi::c_long;
     while i >= 0 as ::core::ffi::c_long {
         MTX_BITIO_output_bit(
             t,
@@ -94,10 +94,10 @@ pub unsafe extern "C" fn MTX_BITIO_ReadValue(
     mut t: *mut BITIO,
     mut numberOfBits: ::core::ffi::c_long,
 ) -> ::core::ffi::c_ulong {
-    let mut value: ::core::ffi::c_ulong = 0;
-    let mut i: ::core::ffi::c_long = 0;
-    value = 0 as ::core::ffi::c_ulong;
-    i = numberOfBits - 1 as ::core::ffi::c_long;
+    
+    
+    
+    let mut value:  ::core::ffi::c_ulong =  0 as ::core::ffi::c_ulong;let mut i:  ::core::ffi::c_long =  numberOfBits - 1 as ::core::ffi::c_long;
     while i >= 0 as ::core::ffi::c_long {
         value <<= 1 as ::core::ffi::c_int;
         if MTX_BITIO_input_bit(t) != 0 {

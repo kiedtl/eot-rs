@@ -187,7 +187,7 @@ unsafe extern "C" fn DecodeLength(
     mut symbol: ::core::ffi::c_int,
     mut numDistRanges: *mut ::core::ffi::c_long,
 ) -> ::core::ffi::c_long {
-    let mut mask: ::core::ffi::c_ulong = 0;
+    
     let mut done: ::core::ffi::c_long = 0;
     let mut bits: ::core::ffi::c_long = 0;
     let mut firstTime: ::core::ffi::c_long = (symbol >= 0 as ::core::ffi::c_int)
@@ -200,7 +200,8 @@ unsafe extern "C" fn DecodeLength(
         - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
     let dist_min: ::core::ffi::c_long = 1 as ::core::ffi::c_long;
     let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
-    mask = ((1 as ::core::ffi::c_long) << bit_Range) as ::core::ffi::c_ulong;
+    let mut mask:  ::core::ffi::c_ulong =
+     ((1 as ::core::ffi::c_long) << bit_Range) as ::core::ffi::c_ulong;
     loop {
         if firstTime != 0 {
             bits = (symbol - 256 as ::core::ffi::c_int) as ::core::ffi::c_long;
@@ -249,7 +250,7 @@ unsafe extern "C" fn DecodeDistance2(
     mut t: *mut LZCOMP,
     mut distRanges: ::core::ffi::c_long,
 ) -> ::core::ffi::c_long {
-    let mut i: ::core::ffi::c_long = 0;
+    
     let mut bits: ::core::ffi::c_long = 0;
     let mut value: ::core::ffi::c_long = 0 as ::core::ffi::c_long;
     let len_min: ::core::ffi::c_long = 2 as ::core::ffi::c_long;
@@ -259,7 +260,7 @@ unsafe extern "C" fn DecodeDistance2(
         - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
     let dist_min: ::core::ffi::c_long = 1 as ::core::ffi::c_long;
     let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
-    i = distRanges;
+    let mut i:  ::core::ffi::c_long =  distRanges;
     while i > 0 as ::core::ffi::c_long {
         bits = MTX_AHUFF_ReadSymbol((*t).dist_ecoder) as ::core::ffi::c_long;
         value <<= dist_width;
@@ -273,13 +274,13 @@ unsafe extern "C" fn InitializeModel(
     mut t: *mut LZCOMP,
     mut compress: ::core::ffi::c_int,
 ) {
-    let mut i: ::core::ffi::c_long = 0;
+    
     let mut j: ::core::ffi::c_long = 0;
     let mut k: ::core::ffi::c_long = 0;
     let preLoadSize: ::core::ffi::c_long = (2 as ::core::ffi::c_int
         * 32 as ::core::ffi::c_int * 96 as ::core::ffi::c_int
         + 4 as ::core::ffi::c_int * 256 as ::core::ffi::c_int) as ::core::ffi::c_long;
-    i = 0 as ::core::ffi::c_long;
+    let mut i:  ::core::ffi::c_long =  0 as ::core::ffi::c_long;
     if preLoadSize > 0 as ::core::ffi::c_long {} else {
         __assert_fail(
             b"preLoadSize > 0\0" as *const u8 as *const ::core::ffi::c_char,
@@ -394,16 +395,15 @@ unsafe extern "C" fn Decode(
     let mut value: ::core::ffi::c_uchar = 0;
     let mut usingRunLength: ::core::ffi::c_int = (*t).usingRunLength
         as ::core::ffi::c_int;
-    let mut dataOutSize: ::core::ffi::c_long = 0;
+    
     let mut index: ::core::ffi::c_long = 0 as ::core::ffi::c_long;
-    let mut dataOut: *mut ::core::ffi::c_uchar = ::core::ptr::null_mut::<
-        ::core::ffi::c_uchar,
-    >();
+    
     let preLoadSize: ::core::ffi::c_long = (2 as ::core::ffi::c_int
         * 32 as ::core::ffi::c_int * 96 as ::core::ffi::c_int
         + 4 as ::core::ffi::c_int * 256 as ::core::ffi::c_int) as ::core::ffi::c_long;
-    dataOutSize = (*t).out_len;
-    dataOut = MTX_mem_malloc((*t).mem, dataOutSize as ::core::ffi::c_ulong)
+    
+    let mut dataOutSize:  ::core::ffi::c_long =  (*t).out_len;let mut dataOut:  *mut ::core::ffi::c_uchar =
+     MTX_mem_malloc((*t).mem, dataOutSize as ::core::ffi::c_ulong)
         as *mut ::core::ffi::c_uchar;
     InitializeModel(t, false_0);
     if (*t).ptr1_IsSizeLimited == 0 {
@@ -695,10 +695,8 @@ pub unsafe extern "C" fn MTX_LZCOMP_UnPackMemory(
     mut sizeOut: *mut ::core::ffi::c_long,
     mut version: ::core::ffi::c_uchar,
 ) -> *mut ::core::ffi::c_uchar {
-    let mut maxOutSize: ::core::ffi::c_long = 0;
-    let mut dataOut: *mut ::core::ffi::c_uchar = ::core::ptr::null_mut::<
-        ::core::ffi::c_uchar,
-    >();
+    
+    
     let len_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let preLoadSize: ::core::ffi::c_long = (2 as ::core::ffi::c_int
@@ -769,7 +767,7 @@ pub unsafe extern "C" fn MTX_LZCOMP_UnPackMemory(
     (*t).out_len = MTX_BITIO_ReadValue((*t).bitIn, 24 as ::core::ffi::c_long)
         as ::core::ffi::c_long;
     SetDistRange(t, (*t).out_len);
-    maxOutSize = (*t).out_len + preLoadSize;
+    let mut maxOutSize:  ::core::ffi::c_long =  (*t).out_len + preLoadSize;
     (*t).ptr1 = MTX_mem_malloc(
         (*t).mem,
         (::core::mem::size_of::<::core::ffi::c_uchar>() as ::core::ffi::c_ulong)
@@ -796,7 +794,7 @@ pub unsafe extern "C" fn MTX_LZCOMP_UnPackMemory(
                 as *const u8 as *const ::core::ffi::c_char,
         );
     };
-    dataOut = Decode(t, sizeOut);
+    let mut dataOut:  *mut ::core::ffi::c_uchar =  Decode(t, sizeOut);
     MTX_AHUFF_Destroy((*t).dist_ecoder);
     (*t).dist_ecoder = ::core::ptr::null_mut::<AHUFF>();
     MTX_AHUFF_Destroy((*t).len_ecoder);
@@ -933,7 +931,7 @@ pub unsafe extern "C" fn MTX_RUNLENGTHCOMP_SaveBytes(
             (*t).state = needByteState;
         }
     } else if (*t).state as ::core::ffi::c_int == needByteState as ::core::ffi::c_int {
-        let mut i: ::core::ffi::c_int = 0;
+        
         if index + (*t).count as ::core::ffi::c_long > dataOutSize {
             dataOutSize = index + (*t).count as ::core::ffi::c_long
                 + (dataOutSize >> 1 as ::core::ffi::c_int);
@@ -943,7 +941,7 @@ pub unsafe extern "C" fn MTX_RUNLENGTHCOMP_SaveBytes(
                 dataOutSize as ::core::ffi::c_ulong,
             ) as *mut ::core::ffi::c_uchar;
         }
-        i = (*t).count as ::core::ffi::c_int;
+        let mut i:  ::core::ffi::c_int =  (*t).count as ::core::ffi::c_int;
         while i > 0 as ::core::ffi::c_int {
             let fresh2 = index;
             index = index + 1;

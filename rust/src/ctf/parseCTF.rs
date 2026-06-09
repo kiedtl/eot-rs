@@ -1044,16 +1044,19 @@ pub unsafe extern "C" fn decodeSimpleGlyph(
         }
         i = i.wrapping_add(1);
     }
-    let mut flags: *mut uint8_t = ::core::ptr::null_mut::<uint8_t>();
-    let mut xCoords: *mut int16_t = ::core::ptr::null_mut::<int16_t>();
-    let mut yCoords: *mut int16_t = ::core::ptr::null_mut::<int16_t>();
-    flags = malloc(
+    
+    
+    
+    
+    
+    let mut flags:  *mut uint8_t =
+     malloc(
         (totalPoints as size_t).wrapping_mul(::core::mem::size_of::<uint8_t>() as size_t),
-    ) as *mut uint8_t;
-    xCoords = malloc(
+    ) as *mut uint8_t;let mut xCoords:  *mut int16_t =
+     malloc(
         (totalPoints as size_t).wrapping_mul(::core::mem::size_of::<int16_t>() as size_t),
-    ) as *mut int16_t;
-    yCoords = malloc(
+    ) as *mut int16_t;let mut yCoords:  *mut int16_t =
+     malloc(
         (totalPoints as size_t).wrapping_mul(::core::mem::size_of::<int16_t>() as size_t),
     ) as *mut int16_t;
     if flags.is_null() || xCoords.is_null() || yCoords.is_null() {
@@ -1545,7 +1548,7 @@ pub unsafe extern "C" fn decodeCompositeGlyph(
         }
     }
     if flags as ::core::ffi::c_int & FLG_HAVE_INSTR as ::core::ffi::c_int != 0 {
-        let mut numInstr: uint16_t = 0 as uint16_t;
+        
         let mut numInstrLocation: ::core::ffi::c_uint = (*out).pos;
         sResult = seekRelativeThroughReserve(
             out,
@@ -1591,7 +1594,8 @@ pub unsafe extern "C" fn decodeCompositeGlyph(
         {
             return EOT_CORRUPT_FILE;
         }
-        numInstr = ((*out).pos as usize)
+        let mut numInstr:  uint16_t =
+     ((*out).pos as usize)
             .wrapping_sub(
                 (numInstrLocation as usize)
                     .wrapping_add(::core::mem::size_of::<uint16_t>() as usize),
