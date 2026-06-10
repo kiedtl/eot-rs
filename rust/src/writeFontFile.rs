@@ -1,8 +1,8 @@
 use ::c2rust_bitfields;
+#[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
+#[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
+#[repr(C)] pub struct _IO_marker { _opaque: [u8; 0] }
 extern "C" {
-    pub type _IO_wide_data;
-    pub type _IO_codecvt;
-    pub type _IO_marker;
     fn fwrite(
         __ptr: *const ::core::ffi::c_void,
         __size: size_t,

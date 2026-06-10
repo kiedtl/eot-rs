@@ -1,8 +1,8 @@
 use ::c2rust_bitfields;
+#[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
+#[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
+#[repr(C)] pub struct _IO_marker { _opaque: [u8; 0] }
 extern "C" {
-    pub type _IO_wide_data;
-    pub type _IO_codecvt;
-    pub type _IO_marker;
     static mut stderr: *mut FILE;
     fn fputs(__s: *const ::core::ffi::c_char, __stream: *mut FILE) -> ::core::ffi::c_int;
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;

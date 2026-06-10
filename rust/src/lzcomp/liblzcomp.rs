@@ -196,7 +196,7 @@ pub unsafe extern "C" fn be24ToCpu(mut buf: *const uint8_t) -> ::core::ffi::c_ui
 #[no_mangle]
 pub unsafe extern "C" fn unpackMtx(
     mut buf: *mut Stream,
-    mut size: ::core::ffi::c_uint,
+    mut _size: ::core::ffi::c_uint,
     mut bufsOut: *mut *mut uint8_t,
     mut bufSizesOut: *mut ::core::ffi::c_uint,
 ) -> EOTError {

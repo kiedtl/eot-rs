@@ -159,11 +159,11 @@ pub const ERR_LZCOMP_Decode_bounds: ::core::ffi::c_int = 3354 as ::core::ffi::c_
 #[no_mangle]
 pub static mut max_2Byte_Dist: ::core::ffi::c_long = 512 as ::core::ffi::c_long;
 unsafe extern "C" fn SetDistRange(mut t: *mut LZCOMP, mut length: ::core::ffi::c_long) {
-    let len_min: ::core::ffi::c_long = 2 as ::core::ffi::c_long;
-    let len_min3: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
+    // let len_min: ::core::ffi::c_long = 2 as ::core::ffi::c_long;
+    // let len_min3: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let len_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
-    let bit_Range: ::core::ffi::c_long = (3 as ::core::ffi::c_int
-        - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
+    // let bit_Range: ::core::ffi::c_long = (3 as ::core::ffi::c_int
+    //     - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
     let dist_min: ::core::ffi::c_long = 1 as ::core::ffi::c_long;
     let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     (*t).num_DistRanges = 1 as ::core::ffi::c_long;
@@ -194,12 +194,12 @@ unsafe extern "C" fn DecodeLength(
         as ::core::ffi::c_int as ::core::ffi::c_long;
     let mut value: ::core::ffi::c_long = 0 as ::core::ffi::c_long;
     let len_min: ::core::ffi::c_long = 2 as ::core::ffi::c_long;
-    let len_min3: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
+    // let len_min3: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let len_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let bit_Range: ::core::ffi::c_long = (3 as ::core::ffi::c_int
         - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
-    let dist_min: ::core::ffi::c_long = 1 as ::core::ffi::c_long;
-    let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
+    // let dist_min: ::core::ffi::c_long = 1 as ::core::ffi::c_long;
+    // let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let mut mask:  ::core::ffi::c_ulong =
      ((1 as ::core::ffi::c_long) << bit_Range) as ::core::ffi::c_ulong;
     loop {
@@ -245,7 +245,7 @@ unsafe extern "C" fn DecodeLength(
     value += len_min;
     return value;
 }
-unsafe extern "C" fn UpdateModel(mut t: *mut LZCOMP, mut index: ::core::ffi::c_long) {}
+unsafe extern "C" fn UpdateModel(mut _t: *mut LZCOMP, mut _index: ::core::ffi::c_long) {}
 unsafe extern "C" fn DecodeDistance2(
     mut t: *mut LZCOMP,
     mut distRanges: ::core::ffi::c_long,
@@ -253,11 +253,11 @@ unsafe extern "C" fn DecodeDistance2(
     
     let mut bits: ::core::ffi::c_long = 0;
     let mut value: ::core::ffi::c_long = 0 as ::core::ffi::c_long;
-    let len_min: ::core::ffi::c_long = 2 as ::core::ffi::c_long;
-    let len_min3: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
-    let len_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
-    let bit_Range: ::core::ffi::c_long = (3 as ::core::ffi::c_int
-        - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
+    // let len_min: ::core::ffi::c_long = 2 as ::core::ffi::c_long;
+    // let len_min3: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
+    // let len_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
+    // let bit_Range: ::core::ffi::c_long = (3 as ::core::ffi::c_int
+    //     - 1 as ::core::ffi::c_int) as ::core::ffi::c_long;
     let dist_min: ::core::ffi::c_long = 1 as ::core::ffi::c_long;
     let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let mut i:  ::core::ffi::c_long =  distRanges;
@@ -821,7 +821,7 @@ pub unsafe extern "C" fn MTX_LZCOMP_UnPackMemory(
 pub unsafe extern "C" fn MTX_LZCOMP_Create1(
     mut mem: *mut MTX_MemHandler,
 ) -> *mut LZCOMP {
-    let hNodeAllocSize: ::core::ffi::c_short = 4095 as ::core::ffi::c_short;
+    //let hNodeAllocSize: ::core::ffi::c_short = 4095 as ::core::ffi::c_short;
     let mut t: *mut LZCOMP = MTX_mem_malloc(
         mem,
         ::core::mem::size_of::<LZCOMP>() as ::core::ffi::c_ulong,
@@ -840,7 +840,7 @@ pub unsafe extern "C" fn MTX_LZCOMP_Create2(
     let preLoadSize: ::core::ffi::c_long = (2 as ::core::ffi::c_int
         * 32 as ::core::ffi::c_int * 96 as ::core::ffi::c_int
         + 4 as ::core::ffi::c_int * 256 as ::core::ffi::c_int) as ::core::ffi::c_long;
-    let hNodeAllocSize: ::core::ffi::c_short = 4095 as ::core::ffi::c_short;
+    //let hNodeAllocSize: ::core::ffi::c_short = 4095 as ::core::ffi::c_short;
     let mut t: *mut LZCOMP = MTX_mem_malloc(
         mem,
         ::core::mem::size_of::<LZCOMP>() as ::core::ffi::c_ulong,

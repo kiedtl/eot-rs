@@ -16,3 +16,6 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 c2rust-bitfields = "0.22.1"
 
+[dev-dependencies]
+ttf-parser = "0.20"
+tempfile = "3.27"

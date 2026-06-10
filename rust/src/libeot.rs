@@ -1,15 +1,20 @@
 use ::c2rust_bitfields;
+
+pub use crate::src::core::*;
+
+use crate::src::EOT::{
+    EOTfillMetadata,
+};
+
+// c2rust emits these as opaque `extern type`s (nightly-only). They are libc
+// FILE internals, only ever used behind pointers and never on the buffer path
+// we call, so empty structs keep the FILE* code compiling on stable Rust.
+#[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
+#[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
+#[repr(C)] pub struct _IO_marker { _opaque: [u8; 0] }
 extern "C" {
-    pub type _IO_wide_data;
-    pub type _IO_codecvt;
-    pub type _IO_marker;
     static mut stderr: *mut FILE;
     fn fputs(__s: *const ::core::ffi::c_char, __stream: *mut FILE) -> ::core::ffi::c_int;
-    fn EOTfillMetadata(
-        bytes: *const uint8_t,
-        bytesLength: ::core::ffi::c_uint,
-        out: *mut EOTMetadata,
-    ) -> EOTError;
     fn free(__ptr: *mut ::core::ffi::c_void);
     fn writeFontBuffer(
         font: *const uint8_t,
@@ -96,75 +101,7 @@ pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
 pub const EOT_HEADER_TOO_BIG: EOTError = 2;
 pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct EUDCInfo {
-    pub exists: bool,
-    pub codePage: uint32_t,
-    pub flags: uint32_t,
-    pub fontDataSize: uint32_t,
-    pub fontData: *mut uint8_t,
-}
-pub type EOTVersion = ::core::ffi::c_uint;
-pub const VERSION_3: EOTVersion = 3;
-pub const VERSION_2: EOTVersion = 2;
-pub const VERSION_1: EOTVersion = 1;
-pub type EOTCharset = ::core::ffi::c_uint;
-pub const OEM_CHARSET: EOTCharset = 255;
-pub const EASTEUROPE_CHARSET: EOTCharset = 238;
-pub const THAI_CHARSET: EOTCharset = 222;
-pub const RUSSIAN_CHARSET: EOTCharset = 204;
-pub const BALTIC_CHARSET: EOTCharset = 186;
-pub const ARABIC_CHARSET: EOTCharset = 178;
-pub const HEBREW_CHARSET: EOTCharset = 177;
-pub const VIETNAMESE_CHARSET: EOTCharset = 163;
-pub const TURKISH_CHARSET: EOTCharset = 162;
-pub const GREEK_CHARSET: EOTCharset = 161;
-pub const CHINESEBIG5_CHARSET: EOTCharset = 136;
-pub const GB2312_CHARSET: EOTCharset = 134;
-pub const HANGUL_CHARSET: EOTCharset = 131;
-pub const JOHAB_CHARSET: EOTCharset = 130;
-pub const SHIFTJIS_CHARSET: EOTCharset = 128;
-pub const MAC_CHARSET: EOTCharset = 77;
-pub const SYMBOL_CHARSET: EOTCharset = 2;
-pub const DEFAULT_CHARSET: EOTCharset = 1;
-pub const ANSI_CHARSET: EOTCharset = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct EOTRootStringInfo {
-    pub rootStringSize: uint16_t,
-    pub rootString: *mut uint16_t,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct EOTMetadata {
-    pub totalSize: uint32_t,
-    pub version: EOTVersion,
-    pub flags: uint32_t,
-    pub panose: [uint8_t; 10],
-    pub charset: EOTCharset,
-    pub italic: bool,
-    pub weight: uint32_t,
-    pub permissions: uint16_t,
-    pub unicodeRange: [uint32_t; 4],
-    pub codePageRange: [uint32_t; 2],
-    pub checkSumAdjustment: uint32_t,
-    pub familyNameSize: uint16_t,
-    pub familyName: *mut uint16_t,
-    pub styleNameSize: uint16_t,
-    pub styleName: *mut uint16_t,
-    pub versionNameSize: uint16_t,
-    pub versionName: *mut uint16_t,
-    pub fullNameSize: uint16_t,
-    pub fullName: *mut uint16_t,
-    pub numRootStrings: ::core::ffi::c_uint,
-    pub rootStrings: *mut EOTRootStringInfo,
-    pub fontDataSize: uint32_t,
-    pub fontDataOffset: ::core::ffi::c_uint,
-    pub eudcInfo: EUDCInfo,
-    pub do_not_use_size: uint16_t,
-    pub do_not_use: *mut uint16_t,
-}
+
 pub const EOT_WARN: ::core::ffi::c_int = 1000 as ::core::ffi::c_int;
 pub const TTEMBED_TTCOMPRESSED: ::core::ffi::c_int = 0x4 as ::core::ffi::c_int;
 pub const TTEMBED_XORENCRYPTDATA: ::core::ffi::c_int = 0x10000000 as ::core::ffi::c_int;
@@ -216,68 +153,55 @@ pub unsafe extern "C" fn EOTprintError(mut error: EOTError, mut out: *mut FILE) 
         }
     };
 }
+// #[no_mangle]
+// pub unsafe extern "C" fn EOT2ttf_file(
+//     mut font: *const uint8_t,
+//     mut fontSize: ::core::ffi::c_uint,
+//     mut metadataOut: *mut EOTMetadata,
+//     mut out: *mut FILE,
+// ) -> EOTError {
+//     let mut result: EOTError = EOTfillMetadata(font, fontSize, metadataOut);
+//     if result as ::core::ffi::c_uint >= EOT_WARN as ::core::ffi::c_uint {
+//         EOTprintError(result, stderr);
+//     } else if result as ::core::ffi::c_uint
+//         != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
+//     {
+//         return result
+//     }
+//     let mut writeResult: EOTError = writeFontFile(
+//         font.offset((*metadataOut).fontDataOffset as isize),
+//         (*metadataOut).fontDataSize as ::core::ffi::c_uint,
+//         (*metadataOut).flags & TTEMBED_TTCOMPRESSED as uint32_t != 0,
+//         (*metadataOut).flags & TTEMBED_XORENCRYPTDATA as uint32_t != 0,
+//         out,
+//     );
+//     if writeResult as ::core::ffi::c_uint
+//         != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
+//     {
+//         return writeResult;
+//     }
+//     return EOT_SUCCESS;
+// }
+
 #[no_mangle]
-pub unsafe extern "C" fn EOT2ttf_file(
+pub unsafe fn EOT2ttf_buffer(
     mut font: *const uint8_t,
     mut fontSize: ::core::ffi::c_uint,
-    mut metadataOut: *mut EOTMetadata,
-    mut out: *mut FILE,
-) -> EOTError {
-    let mut result: EOTError = EOTfillMetadata(font, fontSize, metadataOut);
-    if result as ::core::ffi::c_uint >= EOT_WARN as ::core::ffi::c_uint {
-        EOTprintError(result, stderr);
-    } else if result as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return result
-    }
-    let mut writeResult: EOTError = writeFontFile(
-        font.offset((*metadataOut).fontDataOffset as isize),
-        (*metadataOut).fontDataSize as ::core::ffi::c_uint,
-        (*metadataOut).flags & TTEMBED_TTCOMPRESSED as uint32_t != 0,
-        (*metadataOut).flags & TTEMBED_XORENCRYPTDATA as uint32_t != 0,
-        out,
-    );
-    if writeResult as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return writeResult;
-    }
-    return EOT_SUCCESS;
-}
-#[no_mangle]
-pub unsafe extern "C" fn EOT2ttf_buffer(
-    mut font: *const uint8_t,
-    mut fontSize: ::core::ffi::c_uint,
-    mut metadataOut: *mut EOTMetadata,
     mut fontOut: *mut *mut uint8_t,
     mut fontSizeOut: *mut ::core::ffi::c_uint,
-) -> EOTError {
-    let mut result: EOTError = EOTfillMetadata(font, fontSize, metadataOut);
-    if result as ::core::ffi::c_uint >= EOT_WARN as ::core::ffi::c_uint {
-        EOTprintError(result, stderr);
-    } else if result as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return result
-    }
-    let mut writeResult: EOTError = writeFontBuffer(
-        font.offset((*metadataOut).fontDataOffset as isize),
-        (*metadataOut).fontDataSize as ::core::ffi::c_uint,
-        (*metadataOut).flags & TTEMBED_TTCOMPRESSED as uint32_t != 0,
-        (*metadataOut).flags & TTEMBED_XORENCRYPTDATA as uint32_t != 0,
+) -> Result<EOTMetadata, Error> {
+    let meta = EOTfillMetadata(font, fontSize)?;
+    writeFontBuffer(
+        font.offset(meta.fontDataOffset as isize),
+        meta.fontDataSize as ::core::ffi::c_uint,
+        meta.flags & TTEMBED_TTCOMPRESSED as uint32_t != 0,
+        meta.flags & TTEMBED_XORENCRYPTDATA as uint32_t != 0,
         fontOut,
         fontSizeOut,
     );
-    if result as ::core::ffi::c_uint >= EOT_WARN as ::core::ffi::c_uint {
-        EOTprintError(result, stderr);
-    } else if writeResult as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return writeResult
-    }
-    return EOT_SUCCESS;
+    Ok(meta)
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTfreeBuffer(mut buffer: *const uint8_t) {
     free(buffer as *mut ::core::ffi::c_void);

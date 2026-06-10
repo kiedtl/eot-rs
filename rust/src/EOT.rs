@@ -1,3 +1,5 @@
+use crate::src::core::*;
+
 extern "C" {
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
     fn free(__ptr: *mut ::core::ffi::c_void);
@@ -38,75 +40,6 @@ pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
 pub const EOT_HEADER_TOO_BIG: EOTError = 2;
 pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct EUDCInfo {
-    pub exists: bool,
-    pub codePage: uint32_t,
-    pub flags: uint32_t,
-    pub fontDataSize: uint32_t,
-    pub fontData: *mut uint8_t,
-}
-pub type EOTVersion = ::core::ffi::c_uint;
-pub const VERSION_3: EOTVersion = 3;
-pub const VERSION_2: EOTVersion = 2;
-pub const VERSION_1: EOTVersion = 1;
-pub type EOTCharset = ::core::ffi::c_uint;
-pub const OEM_CHARSET: EOTCharset = 255;
-pub const EASTEUROPE_CHARSET: EOTCharset = 238;
-pub const THAI_CHARSET: EOTCharset = 222;
-pub const RUSSIAN_CHARSET: EOTCharset = 204;
-pub const BALTIC_CHARSET: EOTCharset = 186;
-pub const ARABIC_CHARSET: EOTCharset = 178;
-pub const HEBREW_CHARSET: EOTCharset = 177;
-pub const VIETNAMESE_CHARSET: EOTCharset = 163;
-pub const TURKISH_CHARSET: EOTCharset = 162;
-pub const GREEK_CHARSET: EOTCharset = 161;
-pub const CHINESEBIG5_CHARSET: EOTCharset = 136;
-pub const GB2312_CHARSET: EOTCharset = 134;
-pub const HANGUL_CHARSET: EOTCharset = 131;
-pub const JOHAB_CHARSET: EOTCharset = 130;
-pub const SHIFTJIS_CHARSET: EOTCharset = 128;
-pub const MAC_CHARSET: EOTCharset = 77;
-pub const SYMBOL_CHARSET: EOTCharset = 2;
-pub const DEFAULT_CHARSET: EOTCharset = 1;
-pub const ANSI_CHARSET: EOTCharset = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct EOTRootStringInfo {
-    pub rootStringSize: uint16_t,
-    pub rootString: *mut uint16_t,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct EOTMetadata {
-    pub totalSize: uint32_t,
-    pub version: EOTVersion,
-    pub flags: uint32_t,
-    pub panose: [uint8_t; 10],
-    pub charset: EOTCharset,
-    pub italic: bool,
-    pub weight: uint32_t,
-    pub permissions: uint16_t,
-    pub unicodeRange: [uint32_t; 4],
-    pub codePageRange: [uint32_t; 2],
-    pub checkSumAdjustment: uint32_t,
-    pub familyNameSize: uint16_t,
-    pub familyName: *mut uint16_t,
-    pub styleNameSize: uint16_t,
-    pub styleName: *mut uint16_t,
-    pub versionNameSize: uint16_t,
-    pub versionName: *mut uint16_t,
-    pub fullNameSize: uint16_t,
-    pub fullName: *mut uint16_t,
-    pub numRootStrings: ::core::ffi::c_uint,
-    pub rootStrings: *mut EOTRootStringInfo,
-    pub fontDataSize: uint32_t,
-    pub fontDataOffset: ::core::ffi::c_uint,
-    pub eudcInfo: EUDCInfo,
-    pub do_not_use_size: uint16_t,
-    pub do_not_use: *mut uint16_t,
-}
 pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
 pub const false_0: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
 #[no_mangle]
@@ -221,8 +154,13 @@ pub unsafe extern "C" fn EOTgetByteArray(
     }
     return EOT_SUCCESS;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTfreeMetadata(mut d: *mut EOTMetadata) {
+    if true {
+        return;
+    }
+
     if !(*d).familyName.is_null() {
         free((*d).familyName as *mut ::core::ffi::c_void);
     }
@@ -534,58 +472,23 @@ pub unsafe extern "C" fn EOTfillMetadataSpecifyingVersion(
     }
     return EOT_SUCCESS;
 }
+
 #[no_mangle]
-pub unsafe extern "C" fn EOTfillMetadata(
+pub unsafe fn EOTfillMetadata(
     mut bytes: *const uint8_t,
     mut bytesLength: ::core::ffi::c_uint,
-    mut out: *mut EOTMetadata,
-) -> EOTError {
-    let mut zero: EOTMetadata = EOTMetadata {
-        totalSize: 0 as uint32_t,
-        version: 0 as EOTVersion,
-        flags: 0,
-        panose: [0; 10],
-        charset: ANSI_CHARSET,
-        italic: false,
-        weight: 0,
-        permissions: 0,
-        unicodeRange: [0; 4],
-        codePageRange: [0; 2],
-        checkSumAdjustment: 0,
-        familyNameSize: 0,
-        familyName: ::core::ptr::null_mut::<uint16_t>(),
-        styleNameSize: 0,
-        styleName: ::core::ptr::null_mut::<uint16_t>(),
-        versionNameSize: 0,
-        versionName: ::core::ptr::null_mut::<uint16_t>(),
-        fullNameSize: 0,
-        fullName: ::core::ptr::null_mut::<uint16_t>(),
-        numRootStrings: 0,
-        rootStrings: ::core::ptr::null_mut::<EOTRootStringInfo>(),
-        fontDataSize: 0,
-        fontDataOffset: 0,
-        eudcInfo: EUDCInfo {
-            exists: false,
-            codePage: 0,
-            flags: 0,
-            fontDataSize: 0,
-            fontData: ::core::ptr::null_mut::<uint8_t>(),
-        },
-        do_not_use_size: 0,
-        do_not_use: ::core::ptr::null_mut::<uint16_t>(),
-    };
-    *out = zero;
+) -> Result<EOTMetadata, Error> {
+    let mut met = EOTMetadata::ZERO;
     let mut scanner: *const uint8_t = bytes;
     if bytesLength < 8 as ::core::ffi::c_uint
         || bytesLength < EOTgetMetadataLength(bytes)
     {
-        return EOT_INSUFFICIENT_BYTES;
+        return Err(Error::INSUFFICIENT_BYTES);
     }
     if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
         >= bytesLength as ::core::ffi::c_long
     {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+        return Err(Error::INSUFFICIENT_BYTES);
     }
     let mut totalSize: ::core::ffi::c_uint = EOTreadU32LE(scanner)
         as ::core::ffi::c_uint;
@@ -593,8 +496,7 @@ pub unsafe extern "C" fn EOTfillMetadata(
     if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
         >= bytesLength as ::core::ffi::c_long
     {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+        return Err(Error::INSUFFICIENT_BYTES);
     }
     let mut fontDataSize: ::core::ffi::c_uint = EOTreadU32LE(scanner)
         as ::core::ffi::c_uint;
@@ -602,8 +504,7 @@ pub unsafe extern "C" fn EOTfillMetadata(
     if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
         >= bytesLength as ::core::ffi::c_long
     {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+        return Err(Error::INSUFFICIENT_BYTES);
     }
     let mut versionMagic: uint32_t = EOTreadU32LE(scanner);
     scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
@@ -618,40 +519,37 @@ pub unsafe extern "C" fn EOTfillMetadata(
         131074 => {
             codedVersion = VERSION_3;
         }
-        _ => return EOT_CORRUPT_FILE,
+        _ => return Err(Error::CORRUPT_FILE),
     }
     let mut tryVersion: EOTVersion = codedVersion;
     let mut bumpedUp: bool = false_0 != 0;
     let mut knockedDown: bool = false_0 != 0;
     loop {
-        EOTfreeMetadata(out);
-        (*out).totalSize = totalSize as uint32_t;
-        (*out).fontDataSize = fontDataSize as uint32_t;
+        met.totalSize = totalSize as uint32_t;
+        met.fontDataSize = fontDataSize as uint32_t;
         if bytes.offset(bytesLength as isize)
-            < scanner.offset((*out).fontDataSize as isize)
+            < scanner.offset(met.fontDataSize as isize)
         {
-            return EOT_CORRUPT_FILE;
+            return Err(Error::CORRUPT_FILE);
         }
         let mut result: EOTError = EOTfillMetadataSpecifyingVersion(
             scanner,
-            ((bytesLength as uint32_t).wrapping_sub((*out).fontDataSize)
+            ((bytesLength as uint32_t).wrapping_sub(met.fontDataSize)
                 as ::core::ffi::c_long
                 - scanner.offset_from(bytes) as ::core::ffi::c_long)
                 as ::core::ffi::c_uint,
-            out,
+            &mut met,
             tryVersion,
             scanner.offset_from(bytes) as ::core::ffi::c_long as ::core::ffi::c_int,
         );
         if result as ::core::ffi::c_uint
             == EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
         {
-            return (if tryVersion as ::core::ffi::c_uint
-                == codedVersion as ::core::ffi::c_uint
-            {
-                EOT_SUCCESS as ::core::ffi::c_int
+            if tryVersion == codedVersion {
+                return Ok(met);
             } else {
-                EOT_WARN_BAD_VERSION as ::core::ffi::c_int
-            }) as EOTError;
+                return Err(Error::WARN_BAD_VERSION);
+            }
         }
         if result as ::core::ffi::c_uint
             == EOT_HEADER_TOO_BIG as ::core::ffi::c_int as ::core::ffi::c_uint
@@ -660,7 +558,7 @@ pub unsafe extern "C" fn EOTfillMetadata(
                 || tryVersion as ::core::ffi::c_uint
                     == VERSION_3 as ::core::ffi::c_int as ::core::ffi::c_uint
             {
-                return EOT_CORRUPT_FILE;
+                return Err(Error::CORRUPT_FILE);
             }
             knockedDown = false_0 != 0;
             bumpedUp = true_0 != 0;
@@ -672,16 +570,17 @@ pub unsafe extern "C" fn EOTfillMetadata(
                 || tryVersion as ::core::ffi::c_uint
                     == VERSION_1 as ::core::ffi::c_int as ::core::ffi::c_uint
             {
-                return EOT_CORRUPT_FILE;
+                return Err(Error::CORRUPT_FILE);
             }
             knockedDown = true_0 != 0;
             bumpedUp = false_0 != 0;
             tryVersion -= 1;
         } else {
-            return result
+            return Ok(met);
         }
     };
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTcanLegallyEdit(mut metadata: *const EOTMetadata) -> bool {
     return (*metadata).permissions as ::core::ffi::c_int == 0 as ::core::ffi::c_int
