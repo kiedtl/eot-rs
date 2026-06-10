@@ -1,4 +1,4 @@
-use rust::libeot::{EOT2ttf_buffer, EOTfreeBuffer, EOTMetadata};
+use eot::libeot::{EOT2ttf_buffer, EOTfreeBuffer, EOTMetadata};
 
 #[test]
 fn checks() {

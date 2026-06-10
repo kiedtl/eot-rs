@@ -1,4 +1,4 @@
-use rust::EOT;
+use eot::EOT;
 
 /// C API. Must match exactly.
 mod c {
@@ -102,7 +102,7 @@ fn metadata_matches_legacy_api() {
         let c_ret = unsafe { c::EOTfillMetadata(data.as_ptr(), data.len() as u32, &mut c) };
         assert_eq!(c_ret, 0, "EOTfillMetadata: ret = {c_ret}");
 
-        let r = unsafe { EOT::EOTfillMetadata(&data) }.unwrap();
+        let r = EOT::read_metadata(&data).unwrap();
 
         assert_eq!(r.totalSize, c.total_size, "totalSize");
         assert_eq!(r.version, c.version, "version");

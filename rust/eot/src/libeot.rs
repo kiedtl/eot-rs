@@ -1,10 +1,7 @@
 use ::c2rust_bitfields;
 
 pub use crate::core::*;
-
-use crate::EOT::{
-    EOTfillMetadata,
-};
+use crate::EOT;
 
 // c2rust emits these as opaque `extern type`s (nightly-only). They are libc
 // FILE internals, only ever used behind pointers and never on the buffer path
@@ -186,7 +183,7 @@ pub unsafe fn EOT2ttf_buffer(
     mut fontOut: *mut *mut uint8_t,
     mut fontSizeOut: *mut ::core::ffi::c_uint,
 ) -> Result<EOTMetadata, Error> {
-    let meta = EOTfillMetadata(data)?;
+    let meta = EOT::read_metadata(data)?;
     let font = data.as_ptr();
     writeFontBuffer(
         font.offset(meta.fontDataOffset as isize),

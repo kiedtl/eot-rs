@@ -22,6 +22,7 @@ pub enum Error {
     WARN_NOT_ENOUGH_GLYPHS = 1002,
     WARN_BAD_VERSION = 1001,
     WARN_NOT_ENOUGH_SPACE_RESERVED = 1000,
+    CORRUPT_FILE_PADDING_NOT_ZERO = 20,
     MALFORMED_HEAD_TABLE = 19,
     MTX_ERROR = 18,
     UNKNOWN_BUFFER_WRITE_ERROR = 17,
@@ -88,7 +89,7 @@ pub const ANSI_CHARSET: EOTCharset = 0;
 #[derive(Clone)]
 #[repr(C)]
 pub struct EOTMetadata {
-    pub totalSize: uint32_t,
+    pub totalSize: u32,
     pub version: EOTVersion,
     pub flags: uint32_t,
     pub panose: [uint8_t; 10],
@@ -105,8 +106,8 @@ pub struct EOTMetadata {
     pub fullName: Vec<uint16_t>,
     pub numRootStrings: ::core::ffi::c_uint,
     pub rootStrings: *mut EOTRootStringInfo,
-    pub fontDataSize: uint32_t,
-    pub fontDataOffset: ::core::ffi::c_uint,
+    pub fontDataSize: u32,
+    pub fontDataOffset: u32,
     pub eudcInfo: EUDCInfo,
     pub do_not_use: Vec<uint16_t>,
 }
@@ -131,7 +132,7 @@ impl Drop for EOTMetadata {
 
 impl EOTMetadata {
     pub const ZERO: EOTMetadata = EOTMetadata {
-        totalSize: 0 as uint32_t,
+        totalSize: 0,
         version: 0 as EOTVersion,
         flags: 0,
         panose: [0; 10],

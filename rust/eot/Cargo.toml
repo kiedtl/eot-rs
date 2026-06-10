@@ -1,5 +1,5 @@
 [package]
-name = "rust"
+name = "eot"
 authors = [""]
 version = "0.1.0"
 publish = false
@@ -7,10 +7,11 @@ edition = "2021"
 autobins = false
 
 [lib]
-name = "rust"
+name = "eot"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
+byteorder = "1.5.0"
 c2rust-bitfields = "0.22.1"
 
 [dev-dependencies]
