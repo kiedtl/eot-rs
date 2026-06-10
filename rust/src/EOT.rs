@@ -44,6 +44,7 @@ pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
 pub const false_0: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
 #[no_mangle]
 pub static mut EDITING_MASK: uint16_t = 0x8 as uint16_t;
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTreadU32LE(mut bytes: *const uint8_t) -> uint32_t {
     return *bytes.offset(0 as ::core::ffi::c_int as isize) as uint32_t
@@ -54,6 +55,15 @@ pub unsafe extern "C" fn EOTreadU32LE(mut bytes: *const uint8_t) -> uint32_t {
         | (*bytes.offset(3 as ::core::ffi::c_int as isize) as uint32_t)
             << 24 as ::core::ffi::c_int;
 }
+
+fn read_u32_le(bytes: &[u8]) -> Result<u32, Error> {
+    if let Some(&[a, b, c, d]) = bytes.get(..4) {
+        Ok(u32::from_le_bytes([a, b, c, d]))
+    } else {
+        Err(Error::INSUFFICIENT_BYTES)
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTreadU16LE(mut bytes: *const uint8_t) -> uint16_t {
     return (*bytes.offset(0 as ::core::ffi::c_int as isize) as uint16_t
@@ -61,6 +71,7 @@ pub unsafe extern "C" fn EOTreadU16LE(mut bytes: *const uint8_t) -> uint16_t {
         | (*bytes.offset(1 as ::core::ffi::c_int as isize) as uint16_t
             as ::core::ffi::c_int) << 8 as ::core::ffi::c_int) as uint16_t;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTgetMetadataLength(
     mut bytes: *const uint8_t,
@@ -72,6 +83,21 @@ pub unsafe extern "C" fn EOTgetMetadataLength(
     return (totalLength as ::core::ffi::c_uint)
         .wrapping_sub(fontLength as ::core::ffi::c_uint);
 }
+
+#[no_mangle]
+pub fn EOTgetMetadataLength2(bytes: &[u8]) -> Result<usize, Error> {
+    if bytes.len() < 8 {
+        return Err(Error::INSUFFICIENT_BYTES);
+    }
+    let total_length = read_u32_le(bytes)?;
+    let font_length = read_u32_le(&bytes[4..])?;
+    if let Some(diff) = total_length.checked_sub(font_length) {
+        Ok(diff as usize)
+    } else {
+        Err(Error::CORRUPT_FILE)
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTgetString(
     mut scanner: *mut *const uint8_t,
@@ -116,6 +142,32 @@ pub unsafe extern "C" fn EOTgetString(
     }
     return EOT_SUCCESS;
 }
+
+pub unsafe fn EOTgetString2(bytes: &[u8], scanner: &mut usize) -> Result<Vec<uint16_t>, Error> {
+    if *scanner + 2 > bytes.len() {
+        return Err(Error::INSUFFICIENT_BYTES);
+    }
+
+    let size = EOTreadU16LE((&bytes[*scanner..]).as_ptr()) as usize;
+    *scanner += 2;
+
+    if size % 2 != 0 {
+        return Err(Error::BOGUS_STRING_SIZE);
+    }
+
+    if *scanner + size > bytes.len() {
+        return Err(Error::INSUFFICIENT_BYTES);
+    }
+
+    let mut buf = Vec::with_capacity(size / 2);
+    for _ in 0..size / 2 {
+        buf.push(EOTreadU16LE((&bytes[*scanner..]).as_ptr()));
+        *scanner += 2;
+    }
+
+    Ok(buf)
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn EOTgetByteArray(
     mut scanner: *mut *const uint8_t,
@@ -155,428 +207,213 @@ pub unsafe extern "C" fn EOTgetByteArray(
     return EOT_SUCCESS;
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn EOTfreeMetadata(mut d: *mut EOTMetadata) {
-    if true {
-        return;
+pub unsafe fn EOTgetByteArray2(bytes: &[u8], scanner: &mut usize,) -> Result<Vec<u8>, Error> {
+    if *scanner + 4 > bytes.len() {
+        return Err(Error::INSUFFICIENT_BYTES);
     }
 
-    if !(*d).familyName.is_null() {
-        free((*d).familyName as *mut ::core::ffi::c_void);
+    let size = read_u32_le(&bytes[*scanner..])? as usize;
+    *scanner += 4;
+
+    if *scanner + size > bytes.len() {
+        return Err(Error::INSUFFICIENT_BYTES);
     }
-    if !(*d).styleName.is_null() {
-        free((*d).styleName as *mut ::core::ffi::c_void);
+
+    let mut buf = Vec::with_capacity(size);
+    for _ in 0..size {
+        buf.push(bytes[*scanner]);
+        *scanner += 1;
     }
-    if !(*d).versionName.is_null() {
-        free((*d).versionName as *mut ::core::ffi::c_void);
-    }
-    if !(*d).fullName.is_null() {
-        free((*d).fullName as *mut ::core::ffi::c_void);
-    }
-    if !(*d).do_not_use.is_null() {
-        free((*d).do_not_use as *mut ::core::ffi::c_void);
-    }
-    if !(*d).rootStrings.is_null() {
-        let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        while i < (*d).numRootStrings {
-            free(
-                (*(*d).rootStrings.offset(i as isize)).rootString
-                    as *mut ::core::ffi::c_void,
-            );
-            i = i.wrapping_add(1);
-        }
-        free((*d).rootStrings as *mut ::core::ffi::c_void);
-    }
-    if !(*d).eudcInfo.fontData.is_null() {
-        free((*d).eudcInfo.fontData as *mut ::core::ffi::c_void);
-    }
-    let mut zero: EOTMetadata = EOTMetadata {
-        totalSize: 0 as uint32_t,
-        version: 0 as EOTVersion,
-        flags: 0,
-        panose: [0; 10],
-        charset: ANSI_CHARSET,
-        italic: false,
-        weight: 0,
-        permissions: 0,
-        unicodeRange: [0; 4],
-        codePageRange: [0; 2],
-        checkSumAdjustment: 0,
-        familyNameSize: 0,
-        familyName: ::core::ptr::null_mut::<uint16_t>(),
-        styleNameSize: 0,
-        styleName: ::core::ptr::null_mut::<uint16_t>(),
-        versionNameSize: 0,
-        versionName: ::core::ptr::null_mut::<uint16_t>(),
-        fullNameSize: 0,
-        fullName: ::core::ptr::null_mut::<uint16_t>(),
-        numRootStrings: 0,
-        rootStrings: ::core::ptr::null_mut::<EOTRootStringInfo>(),
-        fontDataSize: 0,
-        fontDataOffset: 0,
-        eudcInfo: EUDCInfo {
-            exists: false,
-            codePage: 0,
-            flags: 0,
-            fontDataSize: 0,
-            fontData: ::core::ptr::null_mut::<uint8_t>(),
-        },
-        do_not_use_size: 0,
-        do_not_use: ::core::ptr::null_mut::<uint16_t>(),
-    };
-    *d = zero;
+
+    Ok(buf)
 }
-#[no_mangle]
-pub unsafe extern "C" fn EOTfillMetadataSpecifyingVersion(
-    mut bytes: *const uint8_t,
-    mut bytesLength: ::core::ffi::c_uint,
-    mut out: *mut EOTMetadata,
-    mut version: EOTVersion,
-    mut currIndex: ::core::ffi::c_int,
-) -> EOTError {
-    (*out).version = version;
-    let mut scanner: *const uint8_t = bytes;
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+
+pub unsafe fn EOTfillMetadataSpecifyingVersion(
+    bytes: &[u8],
+    out: &mut EOTMetadata,
+    version: EOTVersion,
+    currIndex: ::core::ffi::c_int,
+) -> Result<(), Error> {
+    out.version = version;
+
+    let mut scanner = 0;
+
+    macro_rules! ensure {
+        ($val:expr) => {
+            if scanner + $val >= bytes.len() {
+                return Err(Error::INSUFFICIENT_BYTES);
+            }
+        }
     }
-    (*out).flags = EOTreadU32LE(scanner);
-    scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 10 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
-    }
+
+    ensure!(4);
+    out.flags = read_u32_le(&bytes[scanner..])?;
+    scanner += 4;
+
+    ensure!(10);
     memcpy(
         &raw mut (*out).panose as *mut ::core::ffi::c_void,
-        scanner as *const ::core::ffi::c_void,
+        (&bytes[scanner..]).as_ptr() as *const ::core::ffi::c_void,
         10 as size_t,
     );
-    scanner = scanner.offset(10 as ::core::ffi::c_int as isize);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 1 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+    scanner += 10;
+
+    ensure!(1);
+    out.charset = bytes[scanner] as EOTCharset;
+    scanner += 1;
+
+    ensure!(1);
+    out.italic = bytes[scanner] != 0;
+    scanner += 1;
+
+    ensure!(4);
+    out.weight = read_u32_le(&bytes[scanner..])?;
+    scanner += 4;
+
+    ensure!(2);
+    out.permissions = EOTreadU16LE((&bytes[scanner..]).as_ptr());
+    scanner += 2;
+
+    ensure!(2);
+    if EOTreadU16LE((&bytes[scanner..]).as_ptr()) != 0x504c {
+        return Err(Error::CORRUPT_FILE);
     }
-    (*out).charset = *scanner as EOTCharset;
-    scanner = scanner.offset(1);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 1 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+    scanner += 2;
+
+    for i in 0..4 {
+        ensure!(4);
+        out.unicodeRange[i] = read_u32_le(&bytes[scanner..])?;
+        scanner += 4;
     }
-    (*out).italic = *scanner != 0;
-    scanner = scanner.offset(1);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
+
+    for i in 0..2 {
+        ensure!(4);
+        out.codePageRange[i] = read_u32_le(&bytes[scanner..])?;
+        scanner += 4;
     }
-    (*out).weight = EOTreadU32LE(scanner);
-    scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 2 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    (*out).permissions = EOTreadU16LE(scanner);
-    scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 2 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    if EOTreadU16LE(scanner) as ::core::ffi::c_int != 0x504c as ::core::ffi::c_int {
-        return EOT_CORRUPT_FILE;
-    }
-    scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < 4 as ::core::ffi::c_uint {
-        if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-            >= bytesLength as ::core::ffi::c_long
-        {
-            EOTfreeMetadata(out);
-            return EOT_INSUFFICIENT_BYTES;
-        }
-        (*out).unicodeRange[i as usize] = EOTreadU32LE(scanner);
-        scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-        i = i.wrapping_add(1);
-    }
-    let mut i_0: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i_0 < 2 as ::core::ffi::c_uint {
-        if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-            >= bytesLength as ::core::ffi::c_long
-        {
-            EOTfreeMetadata(out);
-            return EOT_INSUFFICIENT_BYTES;
-        }
-        (*out).codePageRange[i_0 as usize] = EOTreadU32LE(scanner);
-        scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-        i_0 = i_0.wrapping_add(1);
-    }
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        EOTfreeMetadata(out);
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    (*out).checkSumAdjustment = EOTreadU32LE(scanner);
-    scanner = scanner.offset(22 as ::core::ffi::c_int as isize);
-    let mut macro_defined_var_E: EOTError = EOTgetString(
-        &raw mut scanner,
-        bytes,
-        bytesLength,
-        &raw mut (*out).familyNameSize,
-        &raw mut (*out).familyName,
-    );
-    if macro_defined_var_E as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        EOTfreeMetadata(out);
-        return macro_defined_var_E;
-    }
-    scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-    let mut macro_defined_var_E_0: EOTError = EOTgetString(
-        &raw mut scanner,
-        bytes,
-        bytesLength,
-        &raw mut (*out).styleNameSize,
-        &raw mut (*out).styleName,
-    );
-    if macro_defined_var_E_0 as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        EOTfreeMetadata(out);
-        return macro_defined_var_E_0;
-    }
-    scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-    let mut macro_defined_var_E_1: EOTError = EOTgetString(
-        &raw mut scanner,
-        bytes,
-        bytesLength,
-        &raw mut (*out).versionNameSize,
-        &raw mut (*out).versionName,
-    );
-    if macro_defined_var_E_1 as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        EOTfreeMetadata(out);
-        return macro_defined_var_E_1;
-    }
-    scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-    let mut macro_defined_var_E_2: EOTError = EOTgetString(
-        &raw mut scanner,
-        bytes,
-        bytesLength,
-        &raw mut (*out).fullNameSize,
-        &raw mut (*out).fullName,
-    );
-    if macro_defined_var_E_2 as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        EOTfreeMetadata(out);
-        return macro_defined_var_E_2;
-    }
-    if (*out).version as ::core::ffi::c_uint
-        > VERSION_1 as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-        let mut macro_defined_var_E_3: EOTError = EOTgetString(
-            &raw mut scanner,
-            bytes,
-            bytesLength,
-            &raw mut (*out).do_not_use_size,
-            &raw mut (*out).do_not_use,
-        );
-        if macro_defined_var_E_3 as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            EOTfreeMetadata(out);
-            return macro_defined_var_E_3;
-        }
-        if (*out).version as ::core::ffi::c_uint
-            == VERSION_3 as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            if scanner.offset_from(bytes) as ::core::ffi::c_long
-                + 4 as ::core::ffi::c_long >= bytesLength as ::core::ffi::c_long
-            {
-                EOTfreeMetadata(out);
-                return EOT_INSUFFICIENT_BYTES;
-            }
-            EOTreadU32LE(scanner);
-            scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-            if scanner.offset_from(bytes) as ::core::ffi::c_long
-                + 4 as ::core::ffi::c_long >= bytesLength as ::core::ffi::c_long
-            {
-                EOTfreeMetadata(out);
-                return EOT_INSUFFICIENT_BYTES;
-            }
-            (*out).eudcInfo.codePage = EOTreadU32LE(scanner);
-            scanner = scanner.offset(6 as ::core::ffi::c_int as isize);
-            if scanner.offset_from(bytes) as ::core::ffi::c_long
-                + 2 as ::core::ffi::c_long >= bytesLength as ::core::ffi::c_long
-            {
-                EOTfreeMetadata(out);
-                return EOT_INSUFFICIENT_BYTES;
-            }
-            let mut signatureSize: uint16_t = EOTreadU16LE(scanner);
-            scanner = scanner.offset(2 as ::core::ffi::c_int as isize);
-            if scanner.offset_from(bytes) as ::core::ffi::c_long
-                + signatureSize as ::core::ffi::c_long
-                >= bytesLength as ::core::ffi::c_long
-            {
-                EOTfreeMetadata(out);
-                return EOT_INSUFFICIENT_BYTES;
-            }
-            scanner = scanner.offset(signatureSize as ::core::ffi::c_int as isize);
-            if scanner.offset_from(bytes) as ::core::ffi::c_long
-                + 4 as ::core::ffi::c_long >= bytesLength as ::core::ffi::c_long
-            {
-                EOTfreeMetadata(out);
-                return EOT_INSUFFICIENT_BYTES;
-            }
-            (*out).eudcInfo.flags = EOTreadU32LE(scanner);
-            scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-            let mut macro_defined_var_E_4: EOTError = EOTgetByteArray(
-                &raw mut scanner,
-                bytes,
-                bytesLength,
-                &raw mut (*out).eudcInfo.fontDataSize,
-                &raw mut (*out).eudcInfo.fontData,
-            );
-            if macro_defined_var_E_4 as ::core::ffi::c_uint
-                != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                EOTfreeMetadata(out);
-                return macro_defined_var_E_4;
-            }
-            if (*out).eudcInfo.fontDataSize > 0 as uint32_t {
-                (*out).eudcInfo.exists = true_0 != 0;
-            }
+
+    ensure!(4);
+    out.checkSumAdjustment = read_u32_le(&bytes[scanner..])?;
+    scanner += 22;
+
+    out.familyName = EOTgetString2(bytes, &mut scanner)?;
+    scanner += 2;
+    out.styleName = EOTgetString2(bytes, &mut scanner)?;
+    scanner += 2;
+    out.versionName = EOTgetString2(bytes, &mut scanner)?;
+    scanner += 2;
+    out.fullName = EOTgetString2(bytes, &mut scanner)?;
+
+    if out.version > VERSION_1 {
+        scanner += 2;
+        out.do_not_use = EOTgetString2(bytes, &mut scanner)?;
+
+        if out.version == VERSION_3 {
+            ensure!(4);
+            _ = read_u32_le(&bytes[scanner..]);
+            scanner += 4;
+
+            ensure!(4);
+            out.eudcInfo.codePage = read_u32_le(&bytes[scanner..])?;
+            scanner += 6;
+
+            ensure!(2);
+            let mut signatureSize: uint16_t = EOTreadU16LE((&bytes[scanner..]).as_ptr());
+            scanner += 2;
+
+            ensure!(signatureSize as usize);
+            scanner += signatureSize as usize;
+            // signature is reserved, so do nothing with this.
+
+            ensure!(4);
+            out.eudcInfo.flags = read_u32_le(&bytes[scanner..])?;
+            scanner += 4;
+
+            out.eudcInfo.fontData = EOTgetByteArray2(bytes, &mut scanner)?;
+            out.eudcInfo.exists = out.eudcInfo.fontData.len() > 0;
         }
     }
-    (*out).fontDataOffset = (scanner.offset_from(bytes) as ::core::ffi::c_long
-        + currIndex as ::core::ffi::c_long) as ::core::ffi::c_uint;
-    let mut expectedHeaderSize: ::core::ffi::c_int = (*out).totalSize
-        as ::core::ffi::c_int - (*out).fontDataSize as ::core::ffi::c_int;
-    if (*out).fontDataOffset < expectedHeaderSize as ::core::ffi::c_uint {
-        return EOT_HEADER_TOO_BIG;
+
+    out.fontDataOffset = scanner as u32 + currIndex as u32;
+    let expected_header_size = out.totalSize.wrapping_sub(out.fontDataSize);
+    if out.fontDataOffset < expected_header_size {
+        return Err(Error::HEADER_TOO_BIG);
     }
-    return EOT_SUCCESS;
+    Ok(())
 }
 
-#[no_mangle]
-pub unsafe fn EOTfillMetadata(
-    mut bytes: *const uint8_t,
-    mut bytesLength: ::core::ffi::c_uint,
-) -> Result<EOTMetadata, Error> {
-    let mut met = EOTMetadata::ZERO;
-    let mut scanner: *const uint8_t = bytes;
-    if bytesLength < 8 as ::core::ffi::c_uint
-        || bytesLength < EOTgetMetadataLength(bytes)
-    {
-        return Err(Error::INSUFFICIENT_BYTES);
-    }
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        return Err(Error::INSUFFICIENT_BYTES);
-    }
-    let mut totalSize: ::core::ffi::c_uint = EOTreadU32LE(scanner)
-        as ::core::ffi::c_uint;
-    scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        return Err(Error::INSUFFICIENT_BYTES);
-    }
-    let mut fontDataSize: ::core::ffi::c_uint = EOTreadU32LE(scanner)
-        as ::core::ffi::c_uint;
-    scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-    if scanner.offset_from(bytes) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        >= bytesLength as ::core::ffi::c_long
-    {
-        return Err(Error::INSUFFICIENT_BYTES);
-    }
-    let mut versionMagic: uint32_t = EOTreadU32LE(scanner);
-    scanner = scanner.offset(4 as ::core::ffi::c_int as isize);
-    let mut codedVersion: EOTVersion = 0 as EOTVersion;
-    match versionMagic {
-        65536 => {
-            codedVersion = VERSION_1;
+pub unsafe fn EOTfillMetadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
+    let len = bytes.len();
+    let mut scanner = 0;
+
+    macro_rules! ensure {
+        ($val:expr) => {
+            if scanner + $val >= bytes.len() {
+                return Err(Error::INSUFFICIENT_BYTES);
+            }
         }
-        131073 => {
-            codedVersion = VERSION_2;
-        }
-        131074 => {
-            codedVersion = VERSION_3;
-        }
+    }
+
+    if len < EOTgetMetadataLength2(bytes)? {
+        return Err(Error::INSUFFICIENT_BYTES);
+    }
+
+    ensure!(4);
+    let total_size = read_u32_le(&bytes[scanner..])?;
+    scanner += 4;
+
+    ensure!(4);
+    let font_data_size = read_u32_le(&bytes[scanner..])?;
+    scanner += 4;
+
+    ensure!(4);
+    let coded_version = match read_u32_le(&bytes[scanner..])? {
+        65536 => VERSION_1,
+        131073 => VERSION_2,
+        131074 => VERSION_3,
         _ => return Err(Error::CORRUPT_FILE),
-    }
-    let mut tryVersion: EOTVersion = codedVersion;
-    let mut bumpedUp: bool = false_0 != 0;
-    let mut knockedDown: bool = false_0 != 0;
+    };
+    scanner += 4;
+
+    let mut tryVersion = coded_version;
+    let mut bumpedUp = false;
+    let mut knockedDown = false;
+
     loop {
-        met.totalSize = totalSize as uint32_t;
-        met.fontDataSize = fontDataSize as uint32_t;
-        if bytes.offset(bytesLength as isize)
-            < scanner.offset(met.fontDataSize as isize)
-        {
+        let mut met = EOTMetadata::ZERO;
+        met.totalSize = total_size as uint32_t;
+        met.fontDataSize = font_data_size as uint32_t;
+
+        if bytes.len() < met.fontDataSize as usize + scanner {
             return Err(Error::CORRUPT_FILE);
         }
-        let mut result: EOTError = EOTfillMetadataSpecifyingVersion(
-            scanner,
-            ((bytesLength as uint32_t).wrapping_sub(met.fontDataSize)
-                as ::core::ffi::c_long
-                - scanner.offset_from(bytes) as ::core::ffi::c_long)
-                as ::core::ffi::c_uint,
-            &mut met,
-            tryVersion,
-            scanner.offset_from(bytes) as ::core::ffi::c_long as ::core::ffi::c_int,
-        );
-        if result as ::core::ffi::c_uint
-            == EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            if tryVersion == codedVersion {
-                return Ok(met);
-            } else {
-                return Err(Error::WARN_BAD_VERSION);
-            }
-        }
-        if result as ::core::ffi::c_uint
-            == EOT_HEADER_TOO_BIG as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            if knockedDown as ::core::ffi::c_int != 0
-                || tryVersion as ::core::ffi::c_uint
-                    == VERSION_3 as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return Err(Error::CORRUPT_FILE);
-            }
-            knockedDown = false_0 != 0;
-            bumpedUp = true_0 != 0;
-            tryVersion += 1;
-        } else if result as ::core::ffi::c_uint
-            == EOT_INSUFFICIENT_BYTES as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            if bumpedUp as ::core::ffi::c_int != 0
-                || tryVersion as ::core::ffi::c_uint
-                    == VERSION_1 as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return Err(Error::CORRUPT_FILE);
-            }
-            knockedDown = true_0 != 0;
-            bumpedUp = false_0 != 0;
-            tryVersion -= 1;
-        } else {
-            return Ok(met);
+
+        let sub = &bytes[scanner..bytes.len() - met.fontDataSize as usize];
+        match EOTfillMetadataSpecifyingVersion(sub, &mut met, tryVersion, scanner as i32) {
+            Ok(()) => {
+                if tryVersion == coded_version {
+                    return Ok(met);
+                } else {
+                    return Err(Error::WARN_BAD_VERSION);
+                }
+            },
+            Err(Error::HEADER_TOO_BIG) => {
+                if knockedDown || tryVersion == VERSION_3 {
+                    return Err(Error::CORRUPT_FILE);
+                }
+                knockedDown = false;
+                bumpedUp = true;
+                tryVersion += 1;
+            },
+            Err(Error::INSUFFICIENT_BYTES) => {
+                if bumpedUp || tryVersion == VERSION_1 {
+                    return Err(Error::CORRUPT_FILE);
+                }
+                knockedDown = true;
+                bumpedUp = false;
+                tryVersion -= 1;
+            },
+            Err(e) => return Err(e),
         }
     };
 }

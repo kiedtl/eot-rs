@@ -1,14 +1,7 @@
-use ::c2rust_bitfields;
 #[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
 #[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
 #[repr(C)] pub struct _IO_marker { _opaque: [u8; 0] }
 extern "C" {
-    fn fwrite(
-        __ptr: *const ::core::ffi::c_void,
-        __size: size_t,
-        __n: size_t,
-        __s: *mut FILE,
-    ) -> ::core::ffi::c_ulong;
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
     fn free(__ptr: *mut ::core::ffi::c_void);
     fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
@@ -31,43 +24,7 @@ pub type __off_t = ::core::ffi::c_long;
 pub type __off64_t = ::core::ffi::c_long;
 pub type uint8_t = __uint8_t;
 pub type size_t = usize;
-#[derive(Copy, Clone, BitfieldStruct)]
-#[repr(C)]
-pub struct _IO_FILE {
-    pub _flags: ::core::ffi::c_int,
-    pub _IO_read_ptr: *mut ::core::ffi::c_char,
-    pub _IO_read_end: *mut ::core::ffi::c_char,
-    pub _IO_read_base: *mut ::core::ffi::c_char,
-    pub _IO_write_base: *mut ::core::ffi::c_char,
-    pub _IO_write_ptr: *mut ::core::ffi::c_char,
-    pub _IO_write_end: *mut ::core::ffi::c_char,
-    pub _IO_buf_base: *mut ::core::ffi::c_char,
-    pub _IO_buf_end: *mut ::core::ffi::c_char,
-    pub _IO_save_base: *mut ::core::ffi::c_char,
-    pub _IO_backup_base: *mut ::core::ffi::c_char,
-    pub _IO_save_end: *mut ::core::ffi::c_char,
-    pub _markers: *mut _IO_marker,
-    pub _chain: *mut _IO_FILE,
-    pub _fileno: ::core::ffi::c_int,
-    #[bitfield(name = "_flags2", ty = "::core::ffi::c_int", bits = "0..=23")]
-    pub _flags2: [u8; 3],
-    pub _short_backupbuf: [::core::ffi::c_char; 1],
-    pub _old_offset: __off_t,
-    pub _cur_column: ::core::ffi::c_ushort,
-    pub _vtable_offset: ::core::ffi::c_schar,
-    pub _shortbuf: [::core::ffi::c_char; 1],
-    pub _lock: *mut ::core::ffi::c_void,
-    pub _offset: __off64_t,
-    pub _codecvt: *mut _IO_codecvt,
-    pub _wide_data: *mut _IO_wide_data,
-    pub _freeres_list: *mut _IO_FILE,
-    pub _freeres_buf: *mut ::core::ffi::c_void,
-    pub _prevchain: *mut *mut _IO_FILE,
-    pub _mode: ::core::ffi::c_int,
-    pub _unused2: [::core::ffi::c_char; 20],
-}
 pub type _IO_lock_t = ();
-pub type FILE = _IO_FILE;
 pub type EOTError = ::core::ffi::c_uint;
 pub const EOT_WARN_NOT_ENOUGH_GLYPHS: EOTError = 1002;
 pub const EOT_WARN_BAD_VERSION: EOTError = 1001;
@@ -223,46 +180,6 @@ pub unsafe extern "C" fn writeFontBuffer(
     }
     if !ctr.is_null() {
         freeContainer(ctr);
-    }
-    return result;
-}
-#[no_mangle]
-pub unsafe extern "C" fn writeFontFile(
-    mut font: *const uint8_t,
-    mut fontSize: ::core::ffi::c_uint,
-    mut compressed: bool,
-    mut encrypted: bool,
-    mut outFile: *mut FILE,
-) -> EOTError {
-    let mut itemsWritten: ::core::ffi::c_int = 0;
-    let mut result: EOTError = EOT_SUCCESS;
-    let mut finalBuf: *mut uint8_t = ::core::ptr::null_mut::<uint8_t>();
-    let mut finalFontSize: ::core::ffi::c_uint = 0;
-    result = writeFontBuffer(
-        font,
-        fontSize,
-        compressed,
-        encrypted,
-        &raw mut finalBuf,
-        &raw mut finalFontSize,
-    );
-    if !(result as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint)
-    {
-        itemsWritten = fwrite(
-            finalBuf as *const ::core::ffi::c_void,
-            1 as size_t,
-            finalFontSize as ::core::ffi::c_long as size_t,
-            outFile,
-        ) as ::core::ffi::c_int;
-        if itemsWritten as ::core::ffi::c_uint == finalFontSize {
-            result = EOT_SUCCESS;
-        } else {
-            result = EOT_FWRITE_ERROR;
-        }
-    }
-    if !finalBuf.is_null() {
-        free(finalBuf as *mut ::core::ffi::c_void);
     }
     return result;
 }

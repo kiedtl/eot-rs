@@ -185,12 +185,12 @@ pub unsafe extern "C" fn EOTprintError(mut error: EOTError, mut out: *mut FILE) 
 
 #[no_mangle]
 pub unsafe fn EOT2ttf_buffer(
-    mut font: *const uint8_t,
-    mut fontSize: ::core::ffi::c_uint,
+    data: &[u8],
     mut fontOut: *mut *mut uint8_t,
     mut fontSizeOut: *mut ::core::ffi::c_uint,
 ) -> Result<EOTMetadata, Error> {
-    let meta = EOTfillMetadata(font, fontSize)?;
+    let meta = EOTfillMetadata(data)?;
+    let font = data.as_ptr();
     writeFontBuffer(
         font.offset(meta.fontDataOffset as isize),
         meta.fontDataSize as ::core::ffi::c_uint,
