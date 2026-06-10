@@ -1,4 +1,4 @@
-use crate::src::core::*;
+use crate::core::*;
 
 extern "C" {
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
@@ -42,10 +42,8 @@ pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
 pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
 pub const false_0: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
-#[no_mangle]
 pub static mut EDITING_MASK: uint16_t = 0x8 as uint16_t;
 
-#[no_mangle]
 pub unsafe extern "C" fn EOTreadU32LE(mut bytes: *const uint8_t) -> uint32_t {
     return *bytes.offset(0 as ::core::ffi::c_int as isize) as uint32_t
         | (*bytes.offset(1 as ::core::ffi::c_int as isize) as uint32_t)
@@ -64,7 +62,6 @@ fn read_u32_le(bytes: &[u8]) -> Result<u32, Error> {
     }
 }
 
-#[no_mangle]
 pub unsafe extern "C" fn EOTreadU16LE(mut bytes: *const uint8_t) -> uint16_t {
     return (*bytes.offset(0 as ::core::ffi::c_int as isize) as uint16_t
         as ::core::ffi::c_int
@@ -72,7 +69,6 @@ pub unsafe extern "C" fn EOTreadU16LE(mut bytes: *const uint8_t) -> uint16_t {
             as ::core::ffi::c_int) << 8 as ::core::ffi::c_int) as uint16_t;
 }
 
-#[no_mangle]
 pub unsafe extern "C" fn EOTgetMetadataLength(
     mut bytes: *const uint8_t,
 ) -> ::core::ffi::c_uint {
@@ -84,7 +80,6 @@ pub unsafe extern "C" fn EOTgetMetadataLength(
         .wrapping_sub(fontLength as ::core::ffi::c_uint);
 }
 
-#[no_mangle]
 pub fn EOTgetMetadataLength2(bytes: &[u8]) -> Result<usize, Error> {
     if bytes.len() < 8 {
         return Err(Error::INSUFFICIENT_BYTES);
@@ -96,51 +91,6 @@ pub fn EOTgetMetadataLength2(bytes: &[u8]) -> Result<usize, Error> {
     } else {
         Err(Error::CORRUPT_FILE)
     }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn EOTgetString(
-    mut scanner: *mut *const uint8_t,
-    mut begin: *const uint8_t,
-    mut bytesLength: ::core::ffi::c_uint,
-    mut size: *mut uint16_t,
-    mut string: *mut *mut uint16_t,
-) -> EOTError {
-    if !(*string).is_null() {
-        free(*string as *mut ::core::ffi::c_void);
-    }
-    *string = ::core::ptr::null_mut::<uint16_t>();
-    if (*scanner).offset_from(begin) as ::core::ffi::c_long + 2 as ::core::ffi::c_long
-        > bytesLength as ::core::ffi::c_long
-    {
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    *size = EOTreadU16LE(*scanner);
-    *scanner = (*scanner).offset(2 as ::core::ffi::c_int as isize);
-    if *size as ::core::ffi::c_int % 2 as ::core::ffi::c_int != 0 as ::core::ffi::c_int {
-        return EOT_BOGUS_STRING_SIZE;
-    }
-    if (*scanner).offset_from(begin) as ::core::ffi::c_long
-        + *size as ::core::ffi::c_long > bytesLength as ::core::ffi::c_long
-    {
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    if *size as ::core::ffi::c_int != 0 as ::core::ffi::c_int {
-        *string = malloc(*size as size_t) as *mut uint16_t;
-        if (*string).is_null() {
-            return EOT_CANT_ALLOCATE_MEMORY;
-        }
-        let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        while i
-            < (*size as ::core::ffi::c_int / 2 as ::core::ffi::c_int)
-                as ::core::ffi::c_uint
-        {
-            *(*string).offset(i as isize) = EOTreadU16LE(*scanner);
-            *scanner = (*scanner).offset(2 as ::core::ffi::c_int as isize);
-            i = i.wrapping_add(1);
-        }
-    }
-    return EOT_SUCCESS;
 }
 
 pub unsafe fn EOTgetString2(bytes: &[u8], scanner: &mut usize) -> Result<Vec<uint16_t>, Error> {
@@ -166,45 +116,6 @@ pub unsafe fn EOTgetString2(bytes: &[u8], scanner: &mut usize) -> Result<Vec<uin
     }
 
     Ok(buf)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn EOTgetByteArray(
-    mut scanner: *mut *const uint8_t,
-    mut begin: *const uint8_t,
-    mut bytesLength: ::core::ffi::c_uint,
-    mut size: *mut uint32_t,
-    mut array: *mut *mut uint8_t,
-) -> EOTError {
-    if !(*array).is_null() {
-        free(*array as *mut ::core::ffi::c_void);
-    }
-    *array = ::core::ptr::null_mut::<uint8_t>();
-    if (*scanner).offset_from(begin) as ::core::ffi::c_long + 4 as ::core::ffi::c_long
-        > bytesLength as ::core::ffi::c_long
-    {
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    *size = EOTreadU32LE(*scanner);
-    *scanner = (*scanner).offset(4 as ::core::ffi::c_int as isize);
-    if (*scanner).offset_from(begin) as ::core::ffi::c_long
-        + *size as ::core::ffi::c_long > bytesLength as ::core::ffi::c_long
-    {
-        return EOT_INSUFFICIENT_BYTES;
-    }
-    if *size != 0 as uint32_t {
-        *array = malloc(*size as size_t) as *mut uint8_t;
-        if (*array).is_null() {
-            return EOT_CANT_ALLOCATE_MEMORY;
-        }
-        let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        while (i as uint32_t) < *size {
-            *(*array).offset(i as isize) = **scanner;
-            *scanner = (*scanner).offset(1);
-            i = i.wrapping_add(1);
-        }
-    }
-    return EOT_SUCCESS;
 }
 
 pub unsafe fn EOTgetByteArray2(bytes: &[u8], scanner: &mut usize,) -> Result<Vec<u8>, Error> {
@@ -418,7 +329,6 @@ pub unsafe fn EOTfillMetadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
     };
 }
 
-#[no_mangle]
 pub unsafe extern "C" fn EOTcanLegallyEdit(mut metadata: *const EOTMetadata) -> bool {
     return (*metadata).permissions as ::core::ffi::c_int == 0 as ::core::ffi::c_int
         || (*metadata).permissions as ::core::ffi::c_int

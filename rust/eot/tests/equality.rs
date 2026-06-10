@@ -1,20 +1,20 @@
-use rust::src::libeot::{EOT2ttf_buffer, EOTfreeBuffer, EOTMetadata};
+use rust::libeot::{EOT2ttf_buffer, EOTfreeBuffer, EOTMetadata};
 
 #[test]
 fn checks() {
     let files = [
-        "testdata/font1.fntdata",
-        "testdata/font2.fntdata",
-        "testdata/font3.fntdata",
-        "testdata/font4.fntdata",
-        "testdata/Lato-bold.fntdata",
-        "testdata/Lato-boldItalic.fntdata",
-        "testdata/Lato-italic.fntdata",
-        "testdata/Lato-regular.fntdata",
-        "testdata/Raleway-bold.fntdata",
-        "testdata/Raleway-boldItalic.fntdata",
-        "testdata/Raleway-italic.fntdata",
-        "testdata/Raleway-regular.fntdata",
+        "../testdata/font1.fntdata",
+        "../testdata/font2.fntdata",
+        "../testdata/font3.fntdata",
+        "../testdata/font4.fntdata",
+        "../testdata/Lato-bold.fntdata",
+        "../testdata/Lato-boldItalic.fntdata",
+        "../testdata/Lato-italic.fntdata",
+        "../testdata/Lato-regular.fntdata",
+        "../testdata/Raleway-bold.fntdata",
+        "../testdata/Raleway-boldItalic.fntdata",
+        "../testdata/Raleway-italic.fntdata",
+        "../testdata/Raleway-regular.fntdata",
     ];
 
     for inp in files {
@@ -27,7 +27,7 @@ fn checks() {
 
         unsafe {
             out = std::ptr::null_mut();
-            meta = EOT2ttf_buffer(data.as_ptr(), data.len() as u32, &mut out, &mut n).unwrap();
+            meta = EOT2ttf_buffer(&data, &mut out, &mut n).unwrap();
             _ = meta;
             assert!(!out.is_null());
             slice = std::slice::from_raw_parts(out, n as usize);
@@ -39,7 +39,7 @@ fn checks() {
 
         let c_out_file = tempfile::NamedTempFile::new().unwrap();
         let c_out_path = c_out_file.path();
-        std::process::Command::new("../eot2ttf")
+        std::process::Command::new("../../eot2ttf")
             .args(&[inp, &c_out_path.to_string_lossy()])
             .output()
             .unwrap();

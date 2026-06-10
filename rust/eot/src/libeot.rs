@@ -1,8 +1,8 @@
 use ::c2rust_bitfields;
 
-pub use crate::src::core::*;
+pub use crate::core::*;
 
-use crate::src::EOT::{
+use crate::EOT::{
     EOTfillMetadata,
 };
 
@@ -105,7 +105,6 @@ pub const EOT_SUCCESS: EOTError = 0;
 pub const EOT_WARN: ::core::ffi::c_int = 1000 as ::core::ffi::c_int;
 pub const TTEMBED_TTCOMPRESSED: ::core::ffi::c_int = 0x4 as ::core::ffi::c_int;
 pub const TTEMBED_XORENCRYPTDATA: ::core::ffi::c_int = 0x10000000 as ::core::ffi::c_int;
-#[no_mangle]
 pub unsafe extern "C" fn EOTprintError(mut error: EOTError, mut out: *mut FILE) {
     match error as ::core::ffi::c_uint {
         0 => {}
@@ -153,7 +152,6 @@ pub unsafe extern "C" fn EOTprintError(mut error: EOTError, mut out: *mut FILE) 
         }
     };
 }
-// #[no_mangle]
 // pub unsafe extern "C" fn EOT2ttf_file(
 //     mut font: *const uint8_t,
 //     mut fontSize: ::core::ffi::c_uint,
@@ -183,7 +181,6 @@ pub unsafe extern "C" fn EOTprintError(mut error: EOTError, mut out: *mut FILE) 
 //     return EOT_SUCCESS;
 // }
 
-#[no_mangle]
 pub unsafe fn EOT2ttf_buffer(
     data: &[u8],
     mut fontOut: *mut *mut uint8_t,
@@ -202,7 +199,6 @@ pub unsafe fn EOT2ttf_buffer(
     Ok(meta)
 }
 
-#[no_mangle]
 pub unsafe extern "C" fn EOTfreeBuffer(mut buffer: *const uint8_t) {
     free(buffer as *mut ::core::ffi::c_void);
 }
