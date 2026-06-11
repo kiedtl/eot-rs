@@ -91,6 +91,9 @@ fn metadata_matches_legacy_api() {
         "../testdata/Raleway-boldItalic.fntdata",
         "../testdata/Raleway-italic.fntdata",
         "../testdata/Raleway-regular.fntdata",
+        "../testdata/7/compressed.eot",
+        "../testdata/7/uncompressed.eot",
+        "../testdata/4/font1.eot",
     ];
 
     for inp in files {
