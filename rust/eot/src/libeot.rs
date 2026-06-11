@@ -2,6 +2,7 @@ use ::c2rust_bitfields;
 
 pub use crate::core::*;
 use crate::EOT;
+use crate::writeFontFile;
 
 // c2rust emits these as opaque `extern type`s (nightly-only). They are libc
 // FILE internals, only ever used behind pointers and never on the buffer path
@@ -20,13 +21,6 @@ extern "C" {
         encrypted: bool,
         finalOutBuffer: *mut *mut uint8_t,
         finalFontSize: *mut ::core::ffi::c_uint,
-    ) -> EOTError;
-    fn writeFontFile(
-        font: *const uint8_t,
-        fontSize: ::core::ffi::c_uint,
-        compressed: bool,
-        encrypted: bool,
-        outFile: *mut FILE,
     ) -> EOTError;
 }
 pub type __uint8_t = u8;
@@ -178,24 +172,12 @@ pub unsafe extern "C" fn EOTprintError(mut error: EOTError, mut out: *mut FILE) 
 //     return EOT_SUCCESS;
 // }
 
-pub unsafe fn EOT2ttf_buffer(
-    data: &[u8],
-    mut fontOut: *mut *mut uint8_t,
-    mut fontSizeOut: *mut ::core::ffi::c_uint,
-) -> Result<EOTMetadata, Error> {
+pub unsafe fn EOT2ttf_buffer(data: &[u8]) -> Result<(EOTMetadata, Vec<u8>), Error> {
     let meta = EOT::read_metadata(data)?;
-    let font = data.as_ptr();
-    writeFontBuffer(
-        font.offset(meta.fontDataOffset as isize),
-        meta.fontDataSize as ::core::ffi::c_uint,
+    let fontOut = writeFontFile::writeFontBuffer(
+        &data[meta.fontDataOffset as usize..(meta.fontDataOffset + meta.fontDataSize) as usize],
         meta.flags & TTEMBED_TTCOMPRESSED as uint32_t != 0,
         meta.flags & TTEMBED_XORENCRYPTDATA as uint32_t != 0,
-        fontOut,
-        fontSizeOut,
-    );
-    Ok(meta)
-}
-
-pub unsafe extern "C" fn EOTfreeBuffer(mut buffer: *const uint8_t) {
-    free(buffer as *mut ::core::ffi::c_void);
+    )?;
+    Ok((meta, fontOut))
 }

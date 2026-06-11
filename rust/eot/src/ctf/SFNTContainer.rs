@@ -1,3 +1,5 @@
+use crate::core::Error;
+
 extern "C" {
     fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
     fn constructStream2(
@@ -319,12 +321,9 @@ pub unsafe extern "C" fn _getRequiredSize(
     }
     return ret;
 }
+
 #[no_mangle]
-pub unsafe extern "C" fn dumpContainer(
-    mut ctr: *mut SFNTContainer,
-    mut outBuf: *mut *mut uint8_t,
-    mut outSize: *mut ::core::ffi::c_uint,
-) -> EOTError {
+pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
     let mut tableDirectoryOffset: ::core::ffi::c_uint = 0;
     let mut head: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
     let mut chk: ::core::ffi::c_uint = 0;
@@ -337,130 +336,91 @@ pub unsafe extern "C" fn dumpContainer(
         pos: 0,
         bitPos: 0,
     };
-    let mut current_block: u64;
     let mut s: Stream = constructStream(
         ::core::ptr::null_mut::<uint8_t>(),
         0 as ::core::ffi::c_uint,
     );
     let mut requiredSize: ::core::ffi::c_uint = _getRequiredSize(ctr);
     let mut sResult: StreamResult = reserve(&raw mut s, requiredSize);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CANT_ALLOCATE_MEMORY;
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::CANT_ALLOCATE_MEMORY);
     }
-    let mut returnedStatus: EOTError = EOT_SUCCESS;
     sResult = _writeOffsetTable(ctr, &raw mut s);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        returnedStatus = EOT_LOGIC_ERROR;
-    } else {
-        tableDirectoryOffset = s.pos;
-        sResult = seekRelativeThroughReserve(
-            &raw mut s,
-            _getTableDirectorySize(ctr) as ::core::ffi::c_int,
-        );
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            returnedStatus = EOT_LOGIC_ERROR;
-        } else {
-            head = ::core::ptr::null_mut::<SFNTTable>();
-            chk = 0 as ::core::ffi::c_uint;
-            let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-            loop {
-                if !(i < (*ctr).numTables) {
-                    current_block = 11584701595673473500;
-                    break;
-                }
-                let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize)
-                    as *mut SFNTTable;
-                if strncmp(
-                    &raw mut (*tbl).tag as *mut ::core::ffi::c_char,
-                    b"head\0" as *const u8 as *const ::core::ffi::c_char,
-                    4 as size_t,
-                ) == 0 as ::core::ffi::c_int
-                {
-                    head = tbl;
-                }
-                (*tbl).offset = s.pos;
-                sResult = _writeTblCheckingSum(tbl, &raw mut s);
-                if sResult as ::core::ffi::c_uint
-                    != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                {
-                    returnedStatus = EOT_LOGIC_ERROR;
-                    current_block = 7623316132418092903;
-                    break;
-                } else {
-                    chk = chk.wrapping_add((*tbl).checksum);
-                    i = i.wrapping_add(1);
-                }
-            }
-            match current_block {
-                7623316132418092903 => {}
-                _ => {
-                    if head.is_null() {
-                        returnedStatus = EOT_LOGIC_ERROR;
-                    } else {
-                        seekAbsolute(&raw mut s, tableDirectoryOffset);
-                        sResult = _writeTableDirectory(ctr, &raw mut s);
-                        if sResult as ::core::ffi::c_uint
-                            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                        {
-                            returnedStatus = EOT_LOGIC_ERROR;
-                        } else {
-                            beginningChk = 0;
-                            sResult = BEcheckSum32(
-                                &raw mut s,
-                                &raw mut beginningChk,
-                                0 as ::core::ffi::c_uint,
-                                s.pos,
-                            );
-                            if sResult as ::core::ffi::c_uint
-                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                    as ::core::ffi::c_uint
-                            {
-                                returnedStatus = EOT_LOGIC_ERROR;
-                            } else {
-                                chk = chk.wrapping_add(beginningChk);
-                                finalChecksum = (0xb1b0afba as ::core::ffi::c_uint)
-                                    .wrapping_sub(chk);
-                                sChkOut = constructStream((*head).buf, (*head).bufSize);
-                                sResult = seekAbsolute(
-                                    &raw mut sChkOut,
-                                    8 as ::core::ffi::c_uint,
-                                );
-                                if sResult as ::core::ffi::c_uint
-                                    != EOT_STREAM_OK as ::core::ffi::c_int
-                                        as ::core::ffi::c_uint
-                                {
-                                    returnedStatus = EOT_LOGIC_ERROR;
-                                } else {
-                                    sResult = BEWriteU32(
-                                        &raw mut sChkOut,
-                                        finalChecksum as uint32_t,
-                                    );
-                                    if sResult as ::core::ffi::c_uint
-                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                            as ::core::ffi::c_uint
-                                    {
-                                        returnedStatus = EOT_LOGIC_ERROR;
-                                    } else {
-                                        returnedStatus = EOT_SUCCESS;
-                                        *outBuf = s.buf;
-                                        *outSize = s.size;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::LOGIC_ERROR);
     }
-    return returnedStatus;
+    tableDirectoryOffset = s.pos;
+    sResult = seekRelativeThroughReserve(
+        &raw mut s,
+        _getTableDirectorySize(ctr) as ::core::ffi::c_int,
+    );
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::LOGIC_ERROR);
+    }
+    head = ::core::ptr::null_mut::<SFNTTable>();
+    chk = 0;
+    for i in 0..(*ctr).numTables {
+        let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize)
+            as *mut SFNTTable;
+        if strncmp(
+            &raw mut (*tbl).tag as *mut ::core::ffi::c_char,
+            b"head\0" as *const u8 as *const ::core::ffi::c_char,
+            4 as size_t,
+        ) == 0 as ::core::ffi::c_int
+        {
+            head = tbl;
+        }
+        (*tbl).offset = s.pos;
+        sResult = _writeTblCheckingSum(tbl, &raw mut s);
+        if sResult != EOT_STREAM_OK {
+            return Err(Error::LOGIC_ERROR);
+        }
+        chk = chk.wrapping_add((*tbl).checksum);
+    }
+    if head.is_null() {
+        /* should have already caught the lack of a head table! */
+        return Err(Error::LOGIC_ERROR);
+    }
+    seekAbsolute(&raw mut s, tableDirectoryOffset);
+    sResult = _writeTableDirectory(ctr, &raw mut s);
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::LOGIC_ERROR);
+    }
+    beginningChk = 0;
+    sResult = BEcheckSum32(
+        &raw mut s,
+        &raw mut beginningChk,
+        0 as ::core::ffi::c_uint,
+        s.pos,
+    );
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::LOGIC_ERROR);
+    }
+    chk = chk.wrapping_add(beginningChk);
+    finalChecksum = (0xb1b0afba as ::core::ffi::c_uint)
+        .wrapping_sub(chk);
+    sChkOut = constructStream((*head).buf, (*head).bufSize);
+    sResult = seekAbsolute(
+        &raw mut sChkOut,
+        8 as ::core::ffi::c_uint,
+    );
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::LOGIC_ERROR);
+    }
+    sResult = BEWriteU32(
+        &raw mut sChkOut,
+        finalChecksum as uint32_t,
+    );
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::LOGIC_ERROR);
+    }
+    let mut buf = Vec::with_capacity(s.size as usize);
+    for i in 0..(s.size as usize) {
+        buf.push(*s.buf.wrapping_add(i));
+    }
+    Ok(buf)
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn addTable(
     mut ctr: *mut SFNTContainer,

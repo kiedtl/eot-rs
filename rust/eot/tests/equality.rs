@@ -1,4 +1,4 @@
-use eot::libeot::{EOT2ttf_buffer, EOTfreeBuffer, EOTMetadata};
+use eot::libeot::EOT2ttf_buffer;
 
 #[test]
 fn checks() {
@@ -23,20 +23,13 @@ fn checks() {
     for inp in files {
         let data = std::fs::read(inp).unwrap();
 
-        let mut n: u32 = 0;
-        let slice;
-        let meta: EOTMetadata;
-        let mut out: *mut u8;
+        let out;
 
         unsafe {
-            out = std::ptr::null_mut();
-            meta = EOT2ttf_buffer(&data, &mut out, &mut n).unwrap();
-            _ = meta;
-            assert!(!out.is_null());
-            slice = std::slice::from_raw_parts(out, n as usize);
+            (_, out) = EOT2ttf_buffer(&data).unwrap();
         }
 
-        let face = ttf_parser::Face::parse(slice, 0).expect("ttf::Face::parse failed");
+        let face = ttf_parser::Face::parse(&out, 0).expect("ttf::Face::parse failed");
         println!("ttf_parser OK: {} glyphs, italic={}, weight={}",
             face.number_of_glyphs(), face.is_italic(), face.weight().to_number());
 
@@ -48,10 +41,6 @@ fn checks() {
             .unwrap();
 
         let c_out_data = std::fs::read(c_out_path).unwrap();
-        assert_eq!(c_out_data, slice);
-
-        unsafe {
-            EOTfreeBuffer(out);
-        }
+        assert_eq!(&c_out_data, &out);
     }
 }

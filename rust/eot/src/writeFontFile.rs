@@ -1,3 +1,6 @@
+use crate::core::Error;
+use crate::ctf::SFNTContainer::{SFNTContainer, dumpContainer};
+
 #[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
 #[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
 #[repr(C)] pub struct _IO_marker { _opaque: [u8; 0] }
@@ -6,11 +9,6 @@ extern "C" {
     fn free(__ptr: *mut ::core::ffi::c_void);
     fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
     fn freeContainer(ctr: *mut SFNTContainer);
-    fn dumpContainer(
-        ctr: *mut SFNTContainer,
-        outBuf: *mut *mut uint8_t,
-        outSize: *mut ::core::ffi::c_uint,
-    ) -> EOTError;
     fn parseCTF(streams: *mut *mut Stream, out: *mut *mut SFNTContainer) -> EOTError;
     fn unpackMtx(
         buf: *mut Stream,
@@ -58,128 +56,90 @@ pub struct Stream {
     pub pos: ::core::ffi::c_uint,
     pub bitPos: ::core::ffi::c_uint,
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct SFNTTable {
-    pub tag: [::core::ffi::c_char; 4],
-    pub buf: *mut uint8_t,
-    pub bufSize: ::core::ffi::c_uint,
-    pub offset: ::core::ffi::c_uint,
-    pub checksum: ::core::ffi::c_uint,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct SFNTContainer {
-    pub numTables: ::core::ffi::c_uint,
-    pub _numTablesReserved: ::core::ffi::c_uint,
-    pub tables: *mut SFNTTable,
-}
 pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
     ::core::ffi::c_void,
 >();
+
+pub const ENCRYPTION_KEY: uint8_t = 0x50 as uint8_t;
+
 #[no_mangle]
-pub static mut ENCRYPTION_KEY: uint8_t = 0x50 as uint8_t;
-#[no_mangle]
-pub unsafe extern "C" fn writeFontBuffer(
-    mut font: *const uint8_t,
-    mut fontSize: ::core::ffi::c_uint,
-    mut compressed: bool,
-    mut encrypted: bool,
-    mut finalOutBuffer: *mut *mut uint8_t,
-    mut finalFontSize: *mut ::core::ffi::c_uint,
-) -> EOTError {
-    let mut current_block: u64;
+pub unsafe fn writeFontBuffer(
+    data: &[u8],
+    compressed: bool,
+    encrypted: bool,
+) -> Result<Vec<u8>, Error> {
+    let fontSize = data.len() as u32;
+
+    let mut finalOutBuffer: Vec<u8>;
     let mut result: EOTError = EOT_SUCCESS;
-    let mut buf: *mut uint8_t = malloc(fontSize as size_t) as *mut uint8_t;
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < fontSize {
-        if encrypted {
-            *buf.offset(i as isize) = (*font.offset(i as isize) as ::core::ffi::c_int
-                ^ ENCRYPTION_KEY as ::core::ffi::c_int) as uint8_t;
-        } else {
-            *buf.offset(i as isize) = *font.offset(i as isize);
-        }
-        i = i.wrapping_add(1);
+
+    let mut buf = Vec::with_capacity(data.len());
+    for i in 0..data.len() {
+        buf.push(
+            if encrypted {
+                data[i] ^ ENCRYPTION_KEY
+            } else {
+                data[i]
+            }
+        );
     }
+
     let mut ctfs: [*mut uint8_t; 3] = [
         ::core::ptr::null_mut::<uint8_t>(),
         ::core::ptr::null_mut::<uint8_t>(),
         ::core::ptr::null_mut::<uint8_t>(),
     ];
+
     let mut ctr: *mut SFNTContainer = ::core::ptr::null_mut::<SFNTContainer>();
+
     if compressed {
         let mut sizes: [::core::ffi::c_uint; 3] = [0; 3];
-        let mut sBuf: Stream = constructStream(buf, fontSize);
+        let mut sBuf: Stream = constructStream(buf.as_mut_ptr(), fontSize);
         result = unpackMtx(
             &raw mut sBuf,
             fontSize,
             &raw mut ctfs as *mut *mut uint8_t,
             &raw mut sizes as *mut ::core::ffi::c_uint,
         );
-        if result as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            current_block = 1974090257903522222;
-        } else {
-            let mut streams: [Stream; 3] = [Stream {
-                buf: ::core::ptr::null_mut::<uint8_t>(),
-                size: 0,
-                reserved: 0,
-                pos: 0,
-                bitPos: 0,
-            }; 3];
-            let mut i_0: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-            while i_0 < 3 as ::core::ffi::c_uint {
-                streams[i_0 as usize] = constructStream(
-                    ctfs[i_0 as usize],
-                    sizes[i_0 as usize],
-                );
-                i_0 = i_0.wrapping_add(1);
-            }
-            let mut streamPtrs: [*mut Stream; 3] = [
-                &raw mut streams as *mut Stream,
-                (&raw mut streams as *mut Stream)
-                    .offset(1 as ::core::ffi::c_int as isize),
-                (&raw mut streams as *mut Stream)
-                    .offset(2 as ::core::ffi::c_int as isize),
-            ];
-            result = parseCTF(&raw mut streamPtrs as *mut *mut Stream, &raw mut ctr);
-            if result as ::core::ffi::c_uint
-                != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                current_block = 1974090257903522222;
-            } else {
-                result = dumpContainer(ctr, finalOutBuffer, finalFontSize);
-                if result as ::core::ffi::c_uint
-                    != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-                {
-                    current_block = 1974090257903522222;
-                } else {
-                    current_block = 1109700713171191020;
-                }
-            }
+
+        if result != EOT_SUCCESS {
+            panic!("error");
         }
+
+        let mut streams: [Stream; 3] = [Stream {
+            buf: ::core::ptr::null_mut::<uint8_t>(),
+            size: 0,
+            reserved: 0,
+            pos: 0,
+            bitPos: 0,
+        }; 3];
+        for i in 0..3 {
+            streams[i] = constructStream(ctfs[i], sizes[i]);
+        }
+        let mut streamPtrs: [*mut Stream; 3] = [
+            &raw mut streams as *mut Stream,
+            (&raw mut streams as *mut Stream)
+                .offset(1 as ::core::ffi::c_int as isize),
+            (&raw mut streams as *mut Stream)
+                .offset(2 as ::core::ffi::c_int as isize),
+        ];
+        result = parseCTF(&raw mut streamPtrs as *mut *mut Stream, &raw mut ctr);
+        if result != EOT_SUCCESS {
+            panic!("error");
+        }
+
+        finalOutBuffer = dumpContainer(ctr)?;
     } else {
-        *finalOutBuffer = buf;
-        *finalFontSize = fontSize;
-        current_block = 1109700713171191020;
+        finalOutBuffer = buf;
     }
-    match current_block {
-        1109700713171191020 => {
-            result = EOT_SUCCESS;
-        }
-        _ => {}
+
+    for i in 0..3 {
+        free(ctfs[i] as *mut ::core::ffi::c_void);
     }
-    if *finalOutBuffer != buf {
-        free(buf as *mut ::core::ffi::c_void);
-    }
-    let mut i_1: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i_1 < 3 as ::core::ffi::c_uint {
-        free(ctfs[i_1 as usize] as *mut ::core::ffi::c_void);
-        i_1 = i_1.wrapping_add(1);
-    }
+
     if !ctr.is_null() {
         freeContainer(ctr);
     }
-    return result;
+
+    Ok(finalOutBuffer)
 }
