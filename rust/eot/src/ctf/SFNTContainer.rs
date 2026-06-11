@@ -1,4 +1,7 @@
+use std::io::{Read, Write, Seek, SeekFrom, Cursor};
+
 use crate::core::Error;
+use crate::util::stream2::{Error as StreamError, Stream as Stream2};
 
 extern "C" {
     fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
@@ -157,80 +160,64 @@ pub unsafe extern "C" fn freeContainer(mut ctr: *mut SFNTContainer) {
     free((*ctr).tables as *mut ::core::ffi::c_void);
     free(ctr as *mut ::core::ffi::c_void);
 }
-#[no_mangle]
-pub unsafe extern "C" fn _writeTblCheckingSum(
-    mut tbl: *mut SFNTTable,
-    mut out: *mut Stream,
-) -> StreamResult {
+
+fn be_read_rest_as_u32(cursor: &mut Cursor<&mut [u8]>) -> Result<u32, StreamError> {
+    let pos = cursor.position() as usize;
+    let len = cursor.get_ref().len();
+
+    if pos >= len {
+        return Err(StreamError::NOT_ENOUGH_DATA);
+    }
+
+    let remaining = len - pos;
+    let mut buf = [0u8; 4];
+    cursor.read_exact(&mut buf[..remaining.min(4)])
+        .map_err(|_| StreamError::NOT_ENOUGH_DATA)?;
+
+    Ok(match remaining {
+        1 => (buf[0] as u32) << 24,
+        2 => (u16::from_be_bytes([buf[0], buf[1]]) as u32) << 16,
+        3 => ((buf[0] as u32) << 16 | (buf[1] as u32) << 8 | buf[2] as u32) << 8,
+        _ => u32::from_be_bytes(buf),
+    })
+}
+
+unsafe fn _writeTblCheckingSum(tbl: *mut SFNTTable, out: &mut Stream2) -> Result<(), Error> {
     (*tbl).checksum = 0 as ::core::ffi::c_uint;
-    (*tbl).offset = (*out).pos;
-    let mut tblStream: Stream = constructStream((*tbl).buf, (*tbl).bufSize);
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    let mut sResult2: StreamResult = EOT_STREAM_OK;
+    (*tbl).offset = (*out).pos as u32;
+
+    let tableSlice = std::slice::from_raw_parts_mut((*tbl).buf, (*tbl).bufSize as usize);
+    let mut c = Cursor::new(tableSlice);
+
     loop {
-        let mut chunk: uint32_t = 0;
-        sResult = BEReadRestAsU32(&raw mut tblStream, &raw mut chunk);
-        if !(sResult as ::core::ffi::c_uint
-            == EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint)
-        {
-            break;
-        }
-        (*tbl).checksum = (*tbl).checksum.wrapping_add(chunk as ::core::ffi::c_uint);
-        sResult2 = BEWriteU32(out, chunk);
-        if sResult2 as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return sResult2;
+        match be_read_rest_as_u32(&mut c) {
+            Ok(chunk) => {
+                (*tbl).checksum = (*tbl).checksum.wrapping_add(chunk as ::core::ffi::c_uint);
+                out.be_write_u32(chunk)?;
+            },
+            Err(StreamError::NOT_ENOUGH_DATA) => break,
+            Err(e) => return Err(e.into()),
         }
     }
-    if sResult as ::core::ffi::c_uint
-        == EOT_NOT_ENOUGH_DATA as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_STREAM_OK;
-    }
-    return sResult;
+
+    Ok(())
 }
-#[no_mangle]
-pub unsafe extern "C" fn _writeTableDirectory(
-    mut ctr: *mut SFNTContainer,
-    mut out: *mut Stream,
-) -> StreamResult {
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < (*ctr).numTables {
+
+unsafe fn _writeTableDirectory(ctr: *mut SFNTContainer, out: &mut Stream2) -> Result<(), Error> {
+    for i in 0..(*ctr).numTables {
         let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize) as *mut SFNTTable;
-        let mut iTag: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        while iTag < 4 as ::core::ffi::c_uint {
-            sResult = BEWriteU8(out, (*tbl).tag[iTag as usize] as uint8_t);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
-            iTag = iTag.wrapping_add(1);
+
+        for iTag in 0..4 {
+            out.be_write_u8((*tbl).tag[iTag as usize] as u8)?;
         }
-        sResult = BEWriteU32(out, (*tbl).checksum as uint32_t);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return sResult;
-        }
-        sResult = BEWriteU32(out, (*tbl).offset as uint32_t);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return sResult;
-        }
-        sResult = BEWriteU32(out, (*tbl).bufSize as uint32_t);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return sResult;
-        }
-        i = i.wrapping_add(1);
+
+        out.be_write_u32((*tbl).checksum as u32)?;
+        out.be_write_u32((*tbl).offset as u32)?;
+        out.be_write_u32((*tbl).bufSize as u32)?;
     }
-    return EOT_STREAM_OK;
+    Ok(())
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn _lgflr(mut n: ::core::ffi::c_uint) -> ::core::ffi::c_uint {
     let mut ret: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
@@ -249,12 +236,8 @@ pub unsafe extern "C" fn _maxpw(mut n: ::core::ffi::c_uint) -> ::core::ffi::c_ui
     }
     return ret;
 }
-#[no_mangle]
-pub unsafe extern "C" fn _writeOffsetTable(
-    mut ctr: *mut SFNTContainer,
-    mut out: *mut Stream,
-) -> StreamResult {
-    let mut sResult: StreamResult = EOT_STREAM_OK;
+
+unsafe fn _writeOffsetTable(ctr: *mut SFNTContainer, s: &mut Stream2) -> Result<(), Error> {
     let mut scalerType: uint32_t = 0x10000 as uint32_t;
     let mut numTables: uint16_t = (*ctr).numTables as uint16_t;
     let mut searchRange: uint16_t = _maxpw((*ctr).numTables)
@@ -262,48 +245,21 @@ pub unsafe extern "C" fn _writeOffsetTable(
     let mut entrySelector: uint16_t = _lgflr((*ctr).numTables) as uint16_t;
     let mut rangeShift: uint16_t = (numTables as ::core::ffi::c_int
         * 16 as ::core::ffi::c_int - searchRange as ::core::ffi::c_int) as uint16_t;
-    sResult = BEWriteU32(out, scalerType);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
-    }
-    sResult = BEWriteU16(out, numTables);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
-    }
-    sResult = BEWriteU16(out, searchRange);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
-    }
-    sResult = BEWriteU16(out, entrySelector);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
-    }
-    sResult = BEWriteU16(out, rangeShift);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
-    }
-    return EOT_STREAM_OK;
+
+    s.be_write_u32(scalerType)?;
+    s.be_write_u16(numTables)?;
+    s.be_write_u16(searchRange)?;
+    s.be_write_u16(entrySelector)?;
+    s.be_write_u16(rangeShift)?;
+
+    Ok(())
 }
-#[no_mangle]
-pub unsafe extern "C" fn _getTableDirectorySize(
-    mut ctr: *mut SFNTContainer,
-) -> ::core::ffi::c_uint {
+
+unsafe fn _getTableDirectorySize(ctr: *mut SFNTContainer) -> ::core::ffi::c_uint {
     return (16 as ::core::ffi::c_uint).wrapping_mul((*ctr).numTables);
 }
-#[no_mangle]
-pub unsafe extern "C" fn _getRequiredSize(
-    mut ctr: *mut SFNTContainer,
-) -> ::core::ffi::c_uint {
+
+unsafe fn _getRequiredSize(ctr: *mut SFNTContainer) -> ::core::ffi::c_uint {
     let mut ret: ::core::ffi::c_uint = 12 as ::core::ffi::c_uint;
     ret = ret.wrapping_add(_getTableDirectorySize(ctr));
     let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
@@ -324,41 +280,18 @@ pub unsafe extern "C" fn _getRequiredSize(
 
 #[no_mangle]
 pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
-    let mut tableDirectoryOffset: ::core::ffi::c_uint = 0;
-    let mut head: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
-    let mut chk: ::core::ffi::c_uint = 0;
     let mut beginningChk: ::core::ffi::c_uint = 0;
     let mut finalChecksum: ::core::ffi::c_uint = 0;
-    let mut sChkOut: Stream = Stream {
-        buf: ::core::ptr::null_mut::<uint8_t>(),
-        size: 0,
-        reserved: 0,
-        pos: 0,
-        bitPos: 0,
-    };
-    let mut s: Stream = constructStream(
-        ::core::ptr::null_mut::<uint8_t>(),
-        0 as ::core::ffi::c_uint,
-    );
-    let mut requiredSize: ::core::ffi::c_uint = _getRequiredSize(ctr);
-    let mut sResult: StreamResult = reserve(&raw mut s, requiredSize);
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::CANT_ALLOCATE_MEMORY);
-    }
-    sResult = _writeOffsetTable(ctr, &raw mut s);
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::LOGIC_ERROR);
-    }
-    tableDirectoryOffset = s.pos;
-    sResult = seekRelativeThroughReserve(
-        &raw mut s,
-        _getTableDirectorySize(ctr) as ::core::ffi::c_int,
-    );
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::LOGIC_ERROR);
-    }
-    head = ::core::ptr::null_mut::<SFNTTable>();
-    chk = 0;
+
+    let requiredSize = _getRequiredSize(ctr);
+    let mut s = Stream2::new(requiredSize as usize);
+    _writeOffsetTable(ctr, &mut s)?;
+
+    let tableDirectoryOffset = s.pos;
+    s.seek_relative_through_reserve(_getTableDirectorySize(ctr) as isize)?;
+
+    let mut head: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
+    let mut chk: core::ffi::c_uint = 0;
     for i in 0..(*ctr).numTables {
         let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize)
             as *mut SFNTTable;
@@ -370,55 +303,39 @@ pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
         {
             head = tbl;
         }
-        (*tbl).offset = s.pos;
-        sResult = _writeTblCheckingSum(tbl, &raw mut s);
-        if sResult != EOT_STREAM_OK {
-            return Err(Error::LOGIC_ERROR);
-        }
+        (*tbl).offset = s.pos as u32;
+        _writeTblCheckingSum(tbl, &mut s)?;
         chk = chk.wrapping_add((*tbl).checksum);
     }
     if head.is_null() {
         /* should have already caught the lack of a head table! */
         return Err(Error::LOGIC_ERROR);
     }
-    seekAbsolute(&raw mut s, tableDirectoryOffset);
-    sResult = _writeTableDirectory(ctr, &raw mut s);
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::LOGIC_ERROR);
-    }
-    beginningChk = 0;
-    sResult = BEcheckSum32(
-        &raw mut s,
-        &raw mut beginningChk,
-        0 as ::core::ffi::c_uint,
-        s.pos,
-    );
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::LOGIC_ERROR);
-    }
+
+    s.seek_absolute(tableDirectoryOffset as usize)?;
+    _writeTableDirectory(ctr, &mut s)?;
+
+    beginningChk = s.be_checksum32(0, s.pos)?;
     chk = chk.wrapping_add(beginningChk);
-    finalChecksum = (0xb1b0afba as ::core::ffi::c_uint)
-        .wrapping_sub(chk);
-    sChkOut = constructStream((*head).buf, (*head).bufSize);
-    sResult = seekAbsolute(
-        &raw mut sChkOut,
-        8 as ::core::ffi::c_uint,
+
+    // now put in the global checksum. It's OK that this will make the head checksum incorrect!
+    // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
+    // value.
+    finalChecksum = (0xb1b0afba as ::core::ffi::c_uint).wrapping_sub(chk);
+
+    let sChkOut = std::slice::from_raw_parts_mut((*head).buf, (*head).bufSize as usize);
+    let mut sChkOutC = Cursor::new(sChkOut);
+    sChkOutC.seek(SeekFrom::Start(8)).map_err(|_| Error::LOGIC_ERROR)?;
+
+    let (a, b, c, d) = (
+        (finalChecksum >> 24) as u8,
+        ((finalChecksum >> 16) & 0xFF) as u8,
+        ((finalChecksum >> 8) & 0xFF) as u8,
+        (finalChecksum & 0xFF) as u8
     );
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::LOGIC_ERROR);
-    }
-    sResult = BEWriteU32(
-        &raw mut sChkOut,
-        finalChecksum as uint32_t,
-    );
-    if sResult != EOT_STREAM_OK {
-        return Err(Error::LOGIC_ERROR);
-    }
-    let mut buf = Vec::with_capacity(s.size as usize);
-    for i in 0..(s.size as usize) {
-        buf.push(*s.buf.wrapping_add(i));
-    }
-    Ok(buf)
+    sChkOutC.write_all(&[a, b, c, d]).map_err(|_| Error::LOGIC_ERROR)?;
+
+    Ok(s.buf)
 }
 
 #[no_mangle]
@@ -453,6 +370,7 @@ pub unsafe extern "C" fn addTable(
     *newTableOut = tbl;
     return EOT_SUCCESS;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn loadTableFromStream(
     mut tbl: *mut SFNTTable,

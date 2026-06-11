@@ -44,6 +44,12 @@ pub enum Error {
     INSUFFICIENT_BYTES = 1,
 }
 
+impl From<crate::util::stream2::Error> for Error {
+    fn from(_: crate::util::stream2::Error) -> Error {
+        Error::LOGIC_ERROR
+    }
+}
+
 #[derive(Clone)]
 #[repr(C)]
 pub struct EOTRootStringInfo {

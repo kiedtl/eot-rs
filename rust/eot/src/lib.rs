@@ -27,5 +27,6 @@ pub mod lzcomp {
 pub mod triplet_encodings;
 pub mod util {
     pub mod stream;
+    pub mod stream2;
 } // mod util
 pub mod writeFontFile;
