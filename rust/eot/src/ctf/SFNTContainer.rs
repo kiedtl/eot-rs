@@ -1,4 +1,4 @@
-use std::io::{Read, Write, Seek, SeekFrom, Cursor};
+use std::io::{Read, Cursor};
 
 use crate::core::Error;
 use crate::util::stream2::{Error as StreamError, Stream as Stream2};
@@ -322,18 +322,8 @@ pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
     // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
     // value.
     finalChecksum = (0xb1b0afba as ::core::ffi::c_uint).wrapping_sub(chk);
-
-    let sChkOut = std::slice::from_raw_parts_mut((*head).buf, (*head).bufSize as usize);
-    let mut sChkOutC = Cursor::new(sChkOut);
-    sChkOutC.seek(SeekFrom::Start(8)).map_err(|_| Error::LOGIC_ERROR)?;
-
-    let (a, b, c, d) = (
-        (finalChecksum >> 24) as u8,
-        ((finalChecksum >> 16) & 0xFF) as u8,
-        ((finalChecksum >> 8) & 0xFF) as u8,
-        (finalChecksum & 0xFF) as u8
-    );
-    sChkOutC.write_all(&[a, b, c, d]).map_err(|_| Error::LOGIC_ERROR)?;
+    s.seek_absolute(((*head).offset + 8) as usize)?;
+    s.be_write_u32(finalChecksum)?;
 
     Ok(s.buf)
 }

@@ -63,11 +63,7 @@ pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
 pub const ENCRYPTION_KEY: uint8_t = 0x50 as uint8_t;
 
 #[no_mangle]
-pub unsafe fn writeFontBuffer(
-    data: &[u8],
-    compressed: bool,
-    encrypted: bool,
-) -> Result<Vec<u8>, Error> {
+pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) -> Result<Vec<u8>, Error> {
     let fontSize = data.len() as u32;
 
     let mut finalOutBuffer: Vec<u8>;
