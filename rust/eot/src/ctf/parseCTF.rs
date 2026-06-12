@@ -3,13 +3,7 @@ use crate::ctf::SFNTContainer::*;
 use crate::util::stream::*;
 use crate::ctf::parseTTF::*;
 
-use ::c2rust_bitfields;
-#[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
-#[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
-#[repr(C)] pub struct _IO_marker { _opaque: [u8; 0] }
 extern "C" {
-    static mut stderr: *mut FILE;
-    fn fputs(__s: *const ::core::ffi::c_char, __stream: *mut FILE) -> ::core::ffi::c_int;
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
     fn free(__ptr: *mut ::core::ffi::c_void);
     fn strncmp(
@@ -30,43 +24,6 @@ pub type uint8_t = __uint8_t;
 pub type uint16_t = __uint16_t;
 pub type uint32_t = __uint32_t;
 pub type size_t = usize;
-#[derive(Copy, Clone, BitfieldStruct)]
-#[repr(C)]
-pub struct _IO_FILE {
-    pub _flags: ::core::ffi::c_int,
-    pub _IO_read_ptr: *mut ::core::ffi::c_char,
-    pub _IO_read_end: *mut ::core::ffi::c_char,
-    pub _IO_read_base: *mut ::core::ffi::c_char,
-    pub _IO_write_base: *mut ::core::ffi::c_char,
-    pub _IO_write_ptr: *mut ::core::ffi::c_char,
-    pub _IO_write_end: *mut ::core::ffi::c_char,
-    pub _IO_buf_base: *mut ::core::ffi::c_char,
-    pub _IO_buf_end: *mut ::core::ffi::c_char,
-    pub _IO_save_base: *mut ::core::ffi::c_char,
-    pub _IO_backup_base: *mut ::core::ffi::c_char,
-    pub _IO_save_end: *mut ::core::ffi::c_char,
-    pub _markers: *mut _IO_marker,
-    pub _chain: *mut _IO_FILE,
-    pub _fileno: ::core::ffi::c_int,
-    #[bitfield(name = "_flags2", ty = "::core::ffi::c_int", bits = "0..=23")]
-    pub _flags2: [u8; 3],
-    pub _short_backupbuf: [::core::ffi::c_char; 1],
-    pub _old_offset: __off_t,
-    pub _cur_column: ::core::ffi::c_ushort,
-    pub _vtable_offset: ::core::ffi::c_schar,
-    pub _shortbuf: [::core::ffi::c_char; 1],
-    pub _lock: *mut ::core::ffi::c_void,
-    pub _offset: __off64_t,
-    pub _codecvt: *mut _IO_codecvt,
-    pub _wide_data: *mut _IO_wide_data,
-    pub _freeres_list: *mut _IO_FILE,
-    pub _freeres_buf: *mut ::core::ffi::c_void,
-    pub _prevchain: *mut *mut _IO_FILE,
-    pub _mode: ::core::ffi::c_int,
-    pub _unused2: [::core::ffi::c_char; 20],
-}
-pub type _IO_lock_t = ();
-pub type FILE = _IO_FILE;
 pub type EOTError = ::core::ffi::c_uint;
 pub const EOT_WARN_NOT_ENOUGH_GLYPHS: EOTError = 1002;
 pub const EOT_WARN_BAD_VERSION: EOTError = 1001;
@@ -123,10 +80,7 @@ pub const EOT_WARN: ::core::ffi::c_int = 1000 as ::core::ffi::c_int;
 pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
     ::core::ffi::c_void,
 >();
-#[no_mangle]
-pub unsafe extern "C" fn logWarning(mut out: *const ::core::ffi::c_char) {
-    fputs(out, stderr);
-}
+
 #[no_mangle]
 pub unsafe extern "C" fn umax(
     mut a: ::core::ffi::c_uint,
@@ -134,6 +88,7 @@ pub unsafe extern "C" fn umax(
 ) -> ::core::ffi::c_uint {
     return if a > b { a } else { b };
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn imax(
     mut a: ::core::ffi::c_int,
@@ -141,6 +96,7 @@ pub unsafe extern "C" fn imax(
 ) -> ::core::ffi::c_int {
     return if a > b { a } else { b };
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn imin(
     mut a: ::core::ffi::c_int,
@@ -148,14 +104,17 @@ pub unsafe extern "C" fn imin(
 ) -> ::core::ffi::c_int {
     return if a < b { a } else { b };
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn i16max(mut a: int16_t, mut b: int16_t) -> int16_t {
     return imax(a as ::core::ffi::c_int, b as ::core::ffi::c_int) as int16_t;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn i16min(mut a: int16_t, mut b: int16_t) -> int16_t {
     return imin(a as ::core::ffi::c_int, b as ::core::ffi::c_int) as int16_t;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn parseOffsetTable(
     mut s: *mut Stream,
@@ -194,6 +153,7 @@ pub unsafe extern "C" fn parseOffsetTable(
     }
     return EOT_STREAM_OK;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn _ucvt_rdVal(
     mut sIn: *mut Stream,
@@ -243,6 +203,7 @@ pub unsafe extern "C" fn _ucvt_rdVal(
         as int16_t;
     return EOT_STREAM_OK;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn unpackCVT(
     mut out: *mut SFNTTable,
@@ -296,6 +257,7 @@ pub unsafe extern "C" fn unpackCVT(
     (*out).buf = slice.into();
     return EOT_SUCCESS;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn read255UShort(
     mut sIn: *mut Stream,
@@ -341,6 +303,7 @@ pub unsafe extern "C" fn read255UShort(
         }
     };
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn read255Short(
     mut sIn: *mut Stream,
@@ -395,6 +358,7 @@ pub unsafe extern "C" fn read255Short(
     *out = (*out as ::core::ffi::c_int * sign) as int16_t;
     return EOT_STREAM_OK;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn _dpi_dump(
     mut out: *mut Stream,
@@ -480,10 +444,12 @@ pub unsafe extern "C" fn _dpi_dump(
     }
     return EOT_STREAM_OK;
 }
+
 pub const NPUSHB: ::core::ffi::c_int = 0x40 as ::core::ffi::c_int;
 pub const NPUSHW: ::core::ffi::c_int = 0x41 as ::core::ffi::c_int;
 pub const PUSHB: ::core::ffi::c_int = 0xb0 as ::core::ffi::c_int;
 pub const PUSHW: ::core::ffi::c_int = 0xb8 as ::core::ffi::c_int;
+
 #[no_mangle]
 pub unsafe extern "C" fn _dpi_put(
     mut value: int16_t,
@@ -520,6 +486,7 @@ pub unsafe extern "C" fn _dpi_put(
     *typeLastReadCount = (*typeLastReadCount).wrapping_add(1);
     return EOT_STREAM_OK;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn decodePushInstructions(
     mut sIn: *mut Stream,
@@ -807,6 +774,7 @@ pub unsafe extern "C" fn decodePushInstructions(
     free(data as *mut ::core::ffi::c_void);
     return returnedStatus;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn _dsg_makeFlags(
     mut x: int16_t,
@@ -850,6 +818,7 @@ pub unsafe extern "C" fn _dsg_makeFlags(
     }
     return ret;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn decodeSimpleGlyph(
     mut numContours: int16_t,
@@ -1326,6 +1295,7 @@ pub unsafe extern "C" fn decodeSimpleGlyph(
     free(yCoords as *mut ::core::ffi::c_void);
     return returnedStatus;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn decodeCompositeGlyph(
     mut streams: *mut *mut Stream,
@@ -1535,6 +1505,7 @@ pub unsafe extern "C" fn decodeCompositeGlyph(
     }
     return EOT_SUCCESS;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn decodeGlyph(
     mut streams: *mut *mut Stream,
@@ -1616,6 +1587,7 @@ pub unsafe extern "C" fn decodeGlyph(
     }
     return EOT_SUCCESS;
 }
+
 #[no_mangle]
 pub unsafe extern "C" fn populateGlyfAndLoca(
     mut glyf: *mut SFNTTable,
@@ -1766,10 +1738,7 @@ pub unsafe fn parseCTF(mut streams: *mut *mut Stream) -> Result<SFNTContainer, E
                 *streams.offset(0 as ::core::ffi::c_int as isize),
                 12 as ::core::ffi::c_int,
             );
-            logWarning(
-                b"Ignoring hdmx/VDMX table -- will be fixed in a future release.\n\0"
-                    as *const u8 as *const ::core::ffi::c_char,
-            );
+            eprintln!("Ignoring hdmx/VDMX table -- will be fixed in a future release.\n");
         } else {
             let tag = [tag[0] as _, tag[1] as _, tag[2] as _, tag[3] as _];
             let tbl = out.add_table(&tag);

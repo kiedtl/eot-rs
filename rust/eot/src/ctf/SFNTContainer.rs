@@ -4,49 +4,7 @@ use crate::util::stream::*;
 use crate::core::Error;
 use crate::util::stream2::{Error as StreamError, Stream as Stream2};
 
-extern "C" {
-    fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
-    fn realloc(
-        __ptr: *mut ::core::ffi::c_void,
-        __size: size_t,
-    ) -> *mut ::core::ffi::c_void;
-    fn free(__ptr: *mut ::core::ffi::c_void);
-    fn strncmp(
-        __s1: *const ::core::ffi::c_char,
-        __s2: *const ::core::ffi::c_char,
-        __n: size_t,
-    ) -> ::core::ffi::c_int;
-}
-pub type __uint8_t = u8;
-pub type __uint16_t = u16;
-pub type __uint32_t = u32;
-pub type uint8_t = __uint8_t;
-pub type uint16_t = __uint16_t;
-pub type uint32_t = __uint32_t;
-pub type size_t = usize;
 pub type EOTError = ::core::ffi::c_uint;
-pub const EOT_WARN_NOT_ENOUGH_GLYPHS: EOTError = 1002;
-pub const EOT_WARN_BAD_VERSION: EOTError = 1001;
-pub const EOT_WARN_NOT_ENOUGH_SPACE_RESERVED: EOTError = 1000;
-pub const EOT_MALFORMED_HEAD_TABLE: EOTError = 19;
-pub const EOT_MTX_ERROR: EOTError = 18;
-pub const EOT_UNKNOWN_BUFFER_WRITE_ERROR: EOTError = 17;
-pub const EOT_CORRUPT_HOPCODE_DATA: EOTError = 16;
-pub const EOT_NO_HDMX_TABLE: EOTError = 15;
-pub const EOT_NO_HMTX_TABLE: EOTError = 14;
-pub const EOT_NO_HEAD_TABLE: EOTError = 13;
-pub const EOT_NO_MAXP_TABLE: EOTError = 12;
-pub const EOT_LOGIC_ERROR: EOTError = 11;
-pub const EOT_COMPRESSION_NOT_YET_IMPLEMENTED: EOTError = 10;
-pub const EOT_FWRITE_ERROR: EOTError = 9;
-pub const EOT_OTHER_STDLIB_ERROR: EOTError = 8;
-pub const EOT_CANT_ALLOCATE_MEMORY: EOTError = 7;
-pub const EOT_THIRD_STREAM_INCOMPLETE: EOTError = 6;
-pub const EOT_SECOND_STREAM_INCOMPLETE: EOTError = 5;
-pub const EOT_CORRUPT_FILE: EOTError = 4;
-pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
-pub const EOT_HEADER_TOO_BIG: EOTError = 2;
-pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
 
 #[derive(Clone)]
@@ -168,13 +126,13 @@ pub unsafe extern "C" fn _maxpw(mut n: ::core::ffi::c_uint) -> ::core::ffi::c_ui
 }
 
 unsafe fn _writeOffsetTable(ctr: *mut SFNTContainer, s: &mut Stream2) -> Result<(), Error> {
-    let mut scalerType: uint32_t = 0x10000 as uint32_t;
-    let mut numTables: uint16_t = (*ctr).tables.len() as uint16_t;
-    let mut searchRange: uint16_t = _maxpw((*ctr).tables.len() as u32)
-        .wrapping_mul(16 as ::core::ffi::c_uint) as uint16_t;
-    let mut entrySelector: uint16_t = _lgflr((*ctr).tables.len() as u32) as uint16_t;
-    let mut rangeShift: uint16_t = (numTables as ::core::ffi::c_int
-        * 16 as ::core::ffi::c_int - searchRange as ::core::ffi::c_int) as uint16_t;
+    let mut scalerType: u32 = 0x10000 as u32;
+    let mut numTables: u16 = (*ctr).tables.len() as u16;
+    let mut searchRange: u16 = _maxpw((*ctr).tables.len() as u32)
+        .wrapping_mul(16 as ::core::ffi::c_uint) as u16;
+    let mut entrySelector: u16 = _lgflr((*ctr).tables.len() as u32) as u16;
+    let mut rangeShift: u16 = (numTables as ::core::ffi::c_int
+        * 16 as ::core::ffi::c_int - searchRange as ::core::ffi::c_int) as u16;
 
     s.be_write_u32(scalerType)?;
     s.be_write_u16(numTables)?;
