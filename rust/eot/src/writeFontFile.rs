@@ -1,5 +1,6 @@
 use crate::core::Error;
 use crate::util::stream::*;
+use crate::util::stream2::Stream as Stream2;
 use crate::ctf::SFNTContainer::dumpContainer;
 use crate::ctf::parseCTF::parseCTF;
 
@@ -17,7 +18,6 @@ pub type EOTError = ::core::ffi::c_uint;
 
 pub const ENCRYPTION_KEY: uint8_t = 0x50 as uint8_t;
 
-#[no_mangle]
 pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) -> Result<Vec<u8>, Error> {
     let fontSize = data.len() as u32;
 
@@ -54,24 +54,16 @@ pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) ->
             panic!("error");
         }
 
-        let mut streams: [Stream; 3] = [Stream {
-            buf: ::core::ptr::null_mut::<uint8_t>(),
-            size: 0,
-            reserved: 0,
-            pos: 0,
-            bitPos: 0,
-        }; 3];
-        for i in 0..3 {
-            streams[i] = constructStream(ctfs[i], sizes[i]);
-        }
-        let mut streamPtrs: [*mut Stream; 3] = [
-            &raw mut streams as *mut Stream,
-            (&raw mut streams as *mut Stream)
-                .offset(1 as ::core::ffi::c_int as isize),
-            (&raw mut streams as *mut Stream)
-                .offset(2 as ::core::ffi::c_int as isize),
+        let mut streams: [Stream2; 3] = [
+            Stream2::new2(0, 0),
+            Stream2::new2(0, 0),
+            Stream2::new2(0, 0),
         ];
-        let mut ctr = parseCTF(&raw mut streamPtrs as *mut *mut Stream)?;
+        for (i, stream) in streams.iter_mut().enumerate() {
+            let slice = std::slice::from_raw_parts(ctfs[i], sizes[i] as _);
+            stream.buf = slice.into();
+        }
+        let mut ctr = parseCTF(&mut streams)?;
         finalOutBuffer = dumpContainer(&mut ctr)?;
     } else {
         finalOutBuffer = buf;

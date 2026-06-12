@@ -1,6 +1,5 @@
 use std::io::{Read, Cursor};
 
-use crate::util::stream::*;
 use crate::core::Error;
 use crate::util::stream2::{Error as StreamError, Stream as Stream2};
 
@@ -44,11 +43,6 @@ impl SFNTContainer {
         &mut self.tables[l]
     }
 }
-
-pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
-pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
-    ::core::ffi::c_void,
->();
 
 fn be_read_rest_as_u32(cursor: &mut Cursor<&Box<[u8]>>) -> Result<u32, StreamError> {
     let pos = cursor.position() as usize;
@@ -193,19 +187,12 @@ pub fn dumpContainer(ctr: &mut SFNTContainer) -> Result<Vec<u8>, Error> {
     Ok(s.buf)
 }
 
-pub unsafe fn loadTableFromStream(
-    tbl: &mut SFNTTable,
-    mut s: *mut Stream,
-) -> Result<(), Error> {
-    let mut sResult: StreamResult = seekAbsolute(s, (*tbl).offset as _);
-    if sResult != EOT_STREAM_OK {
+pub fn loadTableFromStream(tbl: &mut SFNTTable, s: &mut Stream2) -> Result<(), Error> {
+    s.seek_absolute(tbl.offset as _).map_err(|_| Error::CORRUPT_FILE)?;
+    let end = s.pos + tbl.buf.len();
+    if end > s.buf.len() {
         return Err(Error::CORRUPT_FILE);
     }
-    let slice = std::slice::from_raw_parts((*s).buf, (*s).size as _);
-    let end = ((*s).pos as usize) + tbl.buf.len();
-    if end > slice.len() {
-        return Err(Error::CORRUPT_FILE);
-    }
-    tbl.buf[..].copy_from_slice(&slice[(*s).pos as _..end]);
+    tbl.buf[..].copy_from_slice(&s.buf[s.pos as _..end]);
     Ok(())
 }

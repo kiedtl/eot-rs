@@ -6,9 +6,6 @@
 #![allow(unused_assignments)]
 #![allow(unused_mut)]
 
-#[macro_use]
-extern crate c2rust_bitfields;
-
 pub mod core;
 pub mod EOT;
 pub mod ctf {

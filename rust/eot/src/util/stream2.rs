@@ -129,6 +129,20 @@ impl Stream {
         Ok(self.be_read_u32()? as i32)
     }
 
+    pub fn seek_relative(&mut self, offset: isize) -> Result<(), Error> {
+        self.check_byte_boundary()?;
+
+        let newpos = self.pos as isize + offset;
+        if newpos < 0 {
+            return Err(Error::NEGATIVE_SEEK);
+        } else if newpos as usize > self.buf.len() {
+            return Err(Error::SEEK_PAST_EOS);
+        }
+
+        self.pos = newpos as usize;
+        Ok(())
+    }
+
     pub fn seek_relative_through_reserve(&mut self, offset: isize) -> Result<(), Error> {
         self.check_byte_boundary()?;
 
@@ -173,6 +187,10 @@ impl Stream {
 
         self.pos += 1;
         Ok(())
+    }
+
+    pub fn be_write_i16(&mut self, val: i16) -> Result<(), Error> {
+        self.be_write_u16(val as u16)
     }
 
     pub fn be_write_u16(&mut self, val: u16) -> Result<(), Error> {
@@ -278,5 +296,15 @@ impl Stream {
         }
 
         Ok(out)
+    }
+
+    pub unsafe fn to_legacy(&mut self) -> crate::util::stream::Stream {
+        crate::util::stream::Stream {
+            buf: self.buf.as_mut_ptr(),
+            size: self.buf.len() as u32,
+            reserved: self.buf.capacity() as u32,
+            pos: self.pos as u32,
+            bitPos: self.bit_pos as u32,
+        }
     }
 }
