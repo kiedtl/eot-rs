@@ -23,15 +23,11 @@ pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) ->
 
     let mut finalOutBuffer: Vec<u8>;
 
-    let mut buf = Vec::with_capacity(data.len());
-    for i in 0..data.len() {
-        buf.push(
-            if encrypted {
-                data[i] ^ ENCRYPTION_KEY
-            } else {
-                data[i]
-            }
-        );
+    let mut buf = Vec::from(data);
+    if encrypted {
+        for byte in &mut buf {
+            *byte ^= ENCRYPTION_KEY;
+        }
     }
 
     let mut ctfs: [*mut uint8_t; 3] = [

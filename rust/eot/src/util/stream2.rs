@@ -129,6 +129,29 @@ impl Stream {
         Ok(self.be_read_u32()? as i32)
     }
 
+    pub fn read_n_bits(&mut self, n: u32) -> Result<u32, Error> {
+        let masks: [u8; 8] = [0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1];
+        if n > 32 {
+            return Err(Error::VALUE_OUT_OF_BOUNDS);
+        }
+
+        let mut out = 0u32;
+        for i in 0..n {
+            if self.pos >= self.buf.len() {
+                return Err(Error::NOT_ENOUGH_DATA);
+            }
+            let is_bit_set = self.buf[self.pos] & masks[self.bit_pos] > 0;
+            out |= if is_bit_set { 1 } else { 0 } << (n - i - 1);
+            self.bit_pos += 1;
+            if self.bit_pos == 8 {
+                self.bit_pos = 0;
+                self.pos += 1;
+            }
+        }
+
+        Ok(out)
+    }
+
     pub fn seek_relative(&mut self, offset: isize) -> Result<(), Error> {
         self.check_byte_boundary()?;
 
@@ -153,7 +176,7 @@ impl Stream {
             return Err(Error::SEEK_PAST_EOS);
         }
 
-        while self.buf.len() <= newpos as usize {
+        while self.buf.len() < newpos as usize {
             self.buf.push(0);
         }
 
@@ -169,6 +192,18 @@ impl Stream {
         }
 
         self.pos = pos;
+        Ok(())
+    }
+
+    pub fn seek_absolute_through_reserve(&mut self, pos: usize) -> Result<(), Error> {
+        self.check_byte_boundary()?;
+        if pos > self.buf.capacity() {
+            return Err(Error::SEEK_PAST_EOS);
+        }
+        self.pos = pos;
+        while self.buf.len() < self.pos {
+            self.buf.push(0);
+        }
         Ok(())
     }
 
@@ -200,17 +235,16 @@ impl Stream {
             return Err(Error::OUT_OF_RESERVED_SPACE);
         }
 
-        let (a, b) = (((val >> 8) & 0xFF) as u8, (val & 0xFF) as u8);
-
-        if self.pos == self.buf.len() {
-            self.buf.push(a);
-            self.buf.push(b);
-        } else {
-            self.buf[self.pos] = a;
-            self.buf[self.pos + 1] = b;
+        let bytes = [((val >> 8) & 0xFF) as u8, (val & 0xFF) as u8];
+        for byte in bytes {
+            if self.pos == self.buf.len() {
+                self.buf.push(byte);
+            } else {
+                self.buf[self.pos] = byte;
+            }
+            self.pos += 1;
         }
 
-        self.pos += 2;
         Ok(())
     }
 
@@ -225,20 +259,19 @@ impl Stream {
             return Err(Error::OUT_OF_RESERVED_SPACE);
         }
 
-        let (a, b, c) = (
+        let bytes = [
             ((val >> 16) & 0xFF) as u8,
             ((val >> 8) & 0xFF) as u8,
             (val & 0xFF) as u8
-        );
+        ];
 
-        if self.pos == self.buf.len() {
-            self.buf.push(a);
-            self.buf.push(b);
-            self.buf.push(c);
-        } else {
-            self.buf[self.pos] = a;
-            self.buf[self.pos + 1] = b;
-            self.buf[self.pos + 2] = c;
+        for byte in bytes {
+            if self.pos == self.buf.len() {
+                self.buf.push(byte);
+            } else {
+                self.buf[self.pos] = byte;
+            }
+            self.pos += 1;
         }
 
         self.pos += 3;
@@ -252,25 +285,22 @@ impl Stream {
             return Err(Error::OUT_OF_RESERVED_SPACE);
         }
 
-        let (a, b, c, d) = (
+        let bytes = [
             (val >> 24) as u8,
             ((val >> 16) & 0xFF) as u8,
             ((val >> 8) & 0xFF) as u8,
             (val & 0xFF) as u8
-        );
-        if self.pos == self.buf.len() {
-            self.buf.push(a);
-            self.buf.push(b);
-            self.buf.push(c);
-            self.buf.push(d);
-        } else {
-            self.buf[self.pos] = a;
-            self.buf[self.pos + 1] = b;
-            self.buf[self.pos + 2] = c;
-            self.buf[self.pos + 3] = d;
+        ];
+
+        for byte in bytes {
+            if self.pos == self.buf.len() {
+                self.buf.push(byte);
+            } else {
+                self.buf[self.pos] = byte;
+            }
+            self.pos += 1;
         }
 
-        self.pos += 4;
         Ok(())
     }
 

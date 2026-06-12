@@ -1,120 +1,24 @@
+use ::core::mem::size_of;
+
+use crate::triplet_encodings::*;
 use crate::core::*;
 use crate::ctf::SFNTContainer::*;
-use crate::util::stream::*;
 use crate::util::stream2::{Error as Stream2Error, Stream as Stream2};
 use crate::ctf::parseTTF::*;
 
-extern "C" {
-    fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
-    fn free(__ptr: *mut ::core::ffi::c_void);
-    fn strncmp(
-        __s1: *const ::core::ffi::c_char,
-        __s2: *const ::core::ffi::c_char,
-        __n: size_t,
-    ) -> ::core::ffi::c_int;
-    static tripletEncodings: [TripletEncoding; 0];
-}
-pub type __uint8_t = u8;
-pub type __int16_t = i16;
-pub type __uint16_t = u16;
-pub type __uint32_t = u32;
-pub type __off_t = ::core::ffi::c_long;
-pub type __off64_t = ::core::ffi::c_long;
-pub type int16_t = __int16_t;
-pub type uint8_t = __uint8_t;
-pub type uint16_t = __uint16_t;
-pub type uint32_t = __uint32_t;
-pub type size_t = usize;
-pub type EOTError = ::core::ffi::c_uint;
-pub const EOT_WARN_NOT_ENOUGH_GLYPHS: EOTError = 1002;
-pub const EOT_WARN_BAD_VERSION: EOTError = 1001;
-pub const EOT_WARN_NOT_ENOUGH_SPACE_RESERVED: EOTError = 1000;
-pub const EOT_MALFORMED_HEAD_TABLE: EOTError = 19;
-pub const EOT_MTX_ERROR: EOTError = 18;
-pub const EOT_UNKNOWN_BUFFER_WRITE_ERROR: EOTError = 17;
-pub const EOT_CORRUPT_HOPCODE_DATA: EOTError = 16;
-pub const EOT_NO_HDMX_TABLE: EOTError = 15;
-pub const EOT_NO_HMTX_TABLE: EOTError = 14;
-pub const EOT_NO_HEAD_TABLE: EOTError = 13;
-pub const EOT_NO_MAXP_TABLE: EOTError = 12;
-pub const EOT_LOGIC_ERROR: EOTError = 11;
-pub const EOT_COMPRESSION_NOT_YET_IMPLEMENTED: EOTError = 10;
-pub const EOT_FWRITE_ERROR: EOTError = 9;
-pub const EOT_OTHER_STDLIB_ERROR: EOTError = 8;
-pub const EOT_CANT_ALLOCATE_MEMORY: EOTError = 7;
-pub const EOT_THIRD_STREAM_INCOMPLETE: EOTError = 6;
-pub const EOT_SECOND_STREAM_INCOMPLETE: EOTError = 5;
-pub const EOT_CORRUPT_FILE: EOTError = 4;
-pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
-pub const EOT_HEADER_TOO_BIG: EOTError = 2;
-pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
-pub const EOT_SUCCESS: EOTError = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct TripletEncoding {
-    pub byteCount: ::core::ffi::c_uint,
-    pub xBits: ::core::ffi::c_uint,
-    pub yBits: ::core::ffi::c_uint,
-    pub deltaX: ::core::ffi::c_uint,
-    pub deltaY: ::core::ffi::c_uint,
-    pub xSign: ::core::ffi::c_int,
-    pub ySign: ::core::ffi::c_int,
-}
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct SFNTOffsetTable {
-    pub scalarType: uint32_t,
-    pub numTables: uint16_t,
-    pub searchRange: uint16_t,
-    pub entrySelector: uint16_t,
-    pub rangeShift: uint16_t,
+    pub scalarType: u32,
+    pub numTables: u16,
+    pub searchRange: u16,
+    pub entrySelector: u16,
+    pub rangeShift: u16,
 }
+
 pub type _dpi_TypeRead = ::core::ffi::c_uint;
 pub const SHORT: _dpi_TypeRead = 1;
 pub const BYTE: _dpi_TypeRead = 0;
-pub const INT16_MIN: ::core::ffi::c_int = -(32767 as ::core::ffi::c_int)
-    - 1 as ::core::ffi::c_int;
-pub const INT16_MAX: ::core::ffi::c_int = 32767 as ::core::ffi::c_int;
-pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
-pub const false_0: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
-pub const EOT_WARN: ::core::ffi::c_int = 1000 as ::core::ffi::c_int;
-pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
-    ::core::ffi::c_void,
->();
-
-#[no_mangle]
-pub unsafe extern "C" fn umax(
-    mut a: ::core::ffi::c_uint,
-    mut b: ::core::ffi::c_uint,
-) -> ::core::ffi::c_uint {
-    return if a > b { a } else { b };
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn imax(
-    mut a: ::core::ffi::c_int,
-    mut b: ::core::ffi::c_int,
-) -> ::core::ffi::c_int {
-    return if a > b { a } else { b };
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn imin(
-    mut a: ::core::ffi::c_int,
-    mut b: ::core::ffi::c_int,
-) -> ::core::ffi::c_int {
-    return if a < b { a } else { b };
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn i16max(mut a: int16_t, mut b: int16_t) -> int16_t {
-    return imax(a as ::core::ffi::c_int, b as ::core::ffi::c_int) as int16_t;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn i16min(mut a: int16_t, mut b: int16_t) -> int16_t {
-    return imin(a as ::core::ffi::c_int, b as ::core::ffi::c_int) as int16_t;
-}
 
 fn parseOffsetTable(s: &mut Stream2) -> Result<SFNTOffsetTable, Stream2Error> {
     let scalarType = s.be_read_u32()?;
@@ -164,191 +68,66 @@ pub fn unpackCVT(mut out: &mut SFNTTable, s_in: &mut Stream2) -> Result<(), Erro
     Ok(())
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn read255UShort(
-    mut sIn: *mut Stream,
-    mut out: *mut uint16_t,
-) -> StreamResult {
-    let mut code: uint8_t = 0;
-    let mut val1: uint8_t = 0;
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    sResult = BEReadU8(sIn, &raw mut code);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
+// http://www.w3.org/Submission/MTX/#id_255USHORT
+fn read255UShort2(s_in: &mut Stream2) -> Result<u16, Stream2Error> {
+    Ok(match s_in.be_read_u8()? {
+        253 => s_in.be_read_u16()?,
+        255 => 253 + s_in.be_read_u8()? as u16,
+        254 => 506 + s_in.be_read_u8()? as u16,
+        val => val as _,
+    })
+}
+
+// http://www.w3.org/Submission/MTX/#id_255SHORT
+fn read255Short2(sIn: &mut Stream2) -> Result<i16, Stream2Error> {
+    let mut code: u8 = sIn.be_read_u8()?;
+    if code == 253 {
+        return sIn.be_read_i16();
     }
-    match code as ::core::ffi::c_int {
-        253 => {
-            sResult = BEReadU16(sIn, out);
-            return sResult;
-        }
-        255 => {
-            sResult = BEReadU8(sIn, &raw mut val1);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
-            *out = (253 as ::core::ffi::c_int + val1 as ::core::ffi::c_int) as uint16_t;
-            return EOT_STREAM_OK;
-        }
-        254 => {
-            sResult = BEReadU8(sIn, &raw mut val1);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
-            *out = (506 as ::core::ffi::c_int + val1 as ::core::ffi::c_int) as uint16_t;
-            return EOT_STREAM_OK;
-        }
-        _ => {
-            *out = code as uint16_t;
-            return EOT_STREAM_OK;
-        }
+
+    let mut sign = 1i16;
+    if code == 250 {
+        sign = -1;
+        code = sIn.be_read_u8()?;
+    }
+
+    let out = match code {
+        255 => 250 + sIn.be_read_u8()? as i16,
+        254 => (250 * 2) + sIn.be_read_u8()? as i16,
+        _ => code as i16,
     };
+
+    Ok(out * sign)
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn read255Short(
-    mut sIn: *mut Stream,
-    mut out: *mut int16_t,
-) -> StreamResult {
-    let mut code: uint8_t = 0;
-    let mut sResult: StreamResult = BEReadU8(sIn, &raw mut code);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return sResult;
-    }
-    if code as ::core::ffi::c_int == 253 as ::core::ffi::c_int {
-        sResult = BEReadS16(sIn, out);
-        return sResult;
-    }
-    let mut sign: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
-    if code as ::core::ffi::c_int == 250 as ::core::ffi::c_int {
-        sign = -(1 as ::core::ffi::c_int);
-        sResult = BEReadU8(sIn, &raw mut code);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return sResult;
-        }
-    }
-    let mut out8: uint8_t = 0;
-    match code as ::core::ffi::c_int {
-        255 => {
-            sResult = BEReadU8(sIn, &raw mut out8);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
-            *out = (250 as ::core::ffi::c_int + out8 as ::core::ffi::c_int) as int16_t;
-        }
-        254 => {
-            sResult = BEReadU8(sIn, &raw mut out8);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
-            *out = (250 as ::core::ffi::c_int * 2 as ::core::ffi::c_int
-                + out8 as ::core::ffi::c_int) as int16_t;
-        }
-        _ => {
-            *out = code as int16_t;
-        }
-    }
-    *out = (*out as ::core::ffi::c_int * sign) as int16_t;
-    return EOT_STREAM_OK;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn _dpi_dump(
-    mut out: *mut Stream,
-    mut lastRead: *mut _dpi_TypeRead,
-    mut typeLastReadCount: *mut ::core::ffi::c_uint,
-    mut data: *mut int16_t,
-    mut dataIndex: *mut ::core::ffi::c_uint,
-) -> StreamResult {
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    if *typeLastReadCount > 0 as ::core::ffi::c_uint {
-        if *typeLastReadCount < 8 as ::core::ffi::c_uint {
-            let mut op: uint8_t = ((if *lastRead as ::core::ffi::c_uint
-                == BYTE as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                PUSHB
-            } else {
-                PUSHW
-            })
-                | (*typeLastReadCount).wrapping_sub(1 as ::core::ffi::c_uint) as uint8_t
-                    as ::core::ffi::c_int) as uint8_t;
-            sResult = BEWriteU8(out, op);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
+fn _dpi_dump2(
+    out: &mut Stream2,
+    lastRead: &mut _dpi_TypeRead,
+    typeLastReadCount: &mut u32,
+    data: &mut Vec<i16>,
+    dataIndex: &mut u32,
+) -> Result<(), Stream2Error> {
+    if *typeLastReadCount > 0 {
+        if *typeLastReadCount < 8 {
+            let op: u8 = (if *lastRead == BYTE { PUSHB } else { PUSHW }) as u8
+                | (*typeLastReadCount).wrapping_sub(1) as u8;
+            out.be_write_u8(op)?;
         } else {
-            let mut op_0: uint8_t = (if *lastRead as ::core::ffi::c_uint
-                == BYTE as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                NPUSHB
-            } else {
-                NPUSHW
-            }) as uint8_t;
-            sResult = BEWriteU8(out, op_0);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
-            sResult = BEWriteU8(out, *typeLastReadCount as uint8_t);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return sResult;
-            }
+            let op: u8 = if *lastRead == BYTE { NPUSHB } else { NPUSHW } as u8;
+            out.be_write_u8(op)?;
+            out.be_write_u8(*typeLastReadCount as u8)?;
         }
-        let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        while i < *typeLastReadCount {
-            if *lastRead as ::core::ffi::c_uint
-                == BYTE as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                sResult = BEWriteU8(
-                    out,
-                    *data
-                        .offset(
-                            (*dataIndex).wrapping_sub(*typeLastReadCount).wrapping_add(i)
-                                as isize,
-                        ) as uint8_t,
-                );
-                if sResult as ::core::ffi::c_uint
-                    != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                {
-                    return sResult;
-                }
+
+        for i in 0..*typeLastReadCount {
+            if *lastRead == BYTE {
+                out.be_write_u8(data[(*dataIndex - *typeLastReadCount + i) as usize] as _)?;
             } else {
-                sResult = BEWriteS16(
-                    out,
-                    *data
-                        .offset(
-                            (*dataIndex).wrapping_sub(*typeLastReadCount).wrapping_add(i)
-                                as isize,
-                        ),
-                );
-                if sResult as ::core::ffi::c_uint
-                    != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                {
-                    return sResult;
-                }
+                out.be_write_i16(data[(*dataIndex - *typeLastReadCount + i) as usize])?;
             }
-            i = i.wrapping_add(1);
         }
     }
-    return EOT_STREAM_OK;
+
+    Ok(())
 }
 
 pub const NPUSHB: ::core::ffi::c_int = 0x40 as ::core::ffi::c_int;
@@ -356,1238 +135,544 @@ pub const NPUSHW: ::core::ffi::c_int = 0x41 as ::core::ffi::c_int;
 pub const PUSHB: ::core::ffi::c_int = 0xb0 as ::core::ffi::c_int;
 pub const PUSHW: ::core::ffi::c_int = 0xb8 as ::core::ffi::c_int;
 
-pub unsafe fn _dpi_put(
-    mut value: int16_t,
-    mut out: *mut Stream,
-    mut lastRead: *mut _dpi_TypeRead,
-    mut typeLastReadCount: *mut ::core::ffi::c_uint,
-    mut data: *mut int16_t,
-    mut dataIndex: *mut ::core::ffi::c_uint,
-) -> StreamResult {
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    let mut newType: _dpi_TypeRead = (if value as ::core::ffi::c_int
-        >= 0 as ::core::ffi::c_int
-        && (value as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
-    {
-        BYTE as ::core::ffi::c_int
-    } else {
-        SHORT as ::core::ffi::c_int
-    }) as _dpi_TypeRead;
-    if newType as ::core::ffi::c_uint != *lastRead as ::core::ffi::c_uint
-        || *typeLastReadCount == 255 as ::core::ffi::c_uint
-    {
-        sResult = _dpi_dump(out, lastRead, typeLastReadCount, data, dataIndex);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return sResult;
-        }
+fn _dpi_put2(
+    value: i16,
+    out: &mut Stream2,
+    lastRead: &mut _dpi_TypeRead,
+    typeLastReadCount: &mut u32,
+    data: &mut Vec<i16>,
+    dataIndex: &mut u32,
+) -> Result<(), Stream2Error> {
+    let newType = if value >= 0 && value < 256 { BYTE } else { SHORT };
+    if newType != *lastRead || *typeLastReadCount == 255 {
+        _dpi_dump2(out, lastRead, typeLastReadCount, data, dataIndex)?;
         *lastRead = newType;
         *typeLastReadCount = 0 as ::core::ffi::c_uint;
     }
     let fresh0 = *dataIndex;
     *dataIndex = (*dataIndex).wrapping_add(1);
-    *data.offset(fresh0 as isize) = value;
+    data[fresh0 as usize] = value;
     *typeLastReadCount = (*typeLastReadCount).wrapping_add(1);
-    return EOT_STREAM_OK;
+    Ok(())
 }
 
-pub unsafe fn decodePushInstructions(
-    mut sIn: *mut Stream,
-    mut sOut: *mut Stream,
-    mut pushCount: ::core::ffi::c_uint,
-) -> EOTError {
-    let mut current_block: u64;
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    let mut remaining: ::core::ffi::c_uint = pushCount;
+// http://www.w3.org/Submission/MTX/#HopCodes
+pub fn decodePushInstructions2(sIn: &mut Stream2, sOut: &mut Stream2, pushCount: u32) -> Result<(), Error> {
+    let mut remaining = pushCount;
     let mut typeLastRead: _dpi_TypeRead = BYTE;
-    let mut typeLastReadCount: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    let mut dataIndex: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    let mut data: *mut int16_t = malloc(
-        (::core::mem::size_of::<int16_t>() as size_t).wrapping_mul(pushCount as size_t),
-    ) as *mut int16_t;
-    let mut returnedStatus: EOTError = EOT_SUCCESS;
-    if data.is_null() {
-        return EOT_CANT_ALLOCATE_MEMORY;
-    }
-    loop {
-        if !(remaining != 0) {
-            current_block = 1134115459065347084;
-            break;
-        }
-        let mut code: uint8_t = 0;
-        sResult = BEPeekU8(sIn, &raw mut code);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-            current_block = 410770814531635848;
-            break;
-        } else {
-            let mut val: int16_t = 0;
-            let mut prev: int16_t = 0;
-            match code as ::core::ffi::c_int {
-                251 => {
-                    if remaining < 3 as ::core::ffi::c_uint {
-                        returnedStatus = EOT_CORRUPT_HOPCODE_DATA;
-                        current_block = 410770814531635848;
-                        break;
-                    } else {
-                        remaining = remaining.wrapping_sub(3 as ::core::ffi::c_uint);
-                        if dataIndex < 2 as ::core::ffi::c_uint {
-                            returnedStatus = EOT_CORRUPT_HOPCODE_DATA;
-                            current_block = 410770814531635848;
-                            break;
-                        } else {
-                            prev = *data
-                                .offset(
-                                    dataIndex.wrapping_sub(2 as ::core::ffi::c_uint) as isize,
-                                );
-                            BEReadU8(sIn, &raw mut code);
-                            sResult = _dpi_put(
-                                prev,
-                                sOut,
-                                &raw mut typeLastRead,
-                                &raw mut typeLastReadCount,
-                                data,
-                                &raw mut dataIndex,
-                            );
-                            if sResult as ::core::ffi::c_uint
-                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                    as ::core::ffi::c_uint
-                            {
-                                returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                current_block = 410770814531635848;
-                                break;
-                            } else {
-                                sResult = read255Short(sIn, &raw mut val);
-                                if sResult as ::core::ffi::c_uint
-                                    != EOT_STREAM_OK as ::core::ffi::c_int
-                                        as ::core::ffi::c_uint
-                                {
-                                    returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                    current_block = 410770814531635848;
-                                    break;
-                                } else {
-                                    sResult = _dpi_put(
-                                        val,
-                                        sOut,
-                                        &raw mut typeLastRead,
-                                        &raw mut typeLastReadCount,
-                                        data,
-                                        &raw mut dataIndex,
-                                    );
-                                    if sResult as ::core::ffi::c_uint
-                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                            as ::core::ffi::c_uint
-                                    {
-                                        returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                        current_block = 410770814531635848;
-                                        break;
-                                    } else {
-                                        sResult = _dpi_put(
-                                            prev,
-                                            sOut,
-                                            &raw mut typeLastRead,
-                                            &raw mut typeLastReadCount,
-                                            data,
-                                            &raw mut dataIndex,
-                                        );
-                                        if !(sResult as ::core::ffi::c_uint
-                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                as ::core::ffi::c_uint)
-                                        {
-                                            continue;
-                                        }
-                                        returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                        current_block = 410770814531635848;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
+    let mut typeLastReadCount = 0u32;
+    let mut dataIndex = 0u32;
+    let mut data = vec![0i16; pushCount as _];
+
+    while remaining > 0 {
+        let mut code = sIn.be_peek_u8()
+            .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+        let mut val = 0i16;
+        let mut prev = 0i16;
+        match code {
+            0xFB => {
+                /* A B 0xFB C -> A B A C A */
+                if remaining < 3 || dataIndex < 2 {
+                    return Err(Error::CORRUPT_HOPCODE_DATA);
                 }
-                252 => {
-                    if remaining < 5 as ::core::ffi::c_uint {
-                        returnedStatus = EOT_CORRUPT_HOPCODE_DATA;
-                        current_block = 410770814531635848;
-                        break;
-                    } else {
-                        remaining = remaining.wrapping_sub(5 as ::core::ffi::c_uint);
-                        if dataIndex < 2 as ::core::ffi::c_uint {
-                            returnedStatus = EOT_CORRUPT_HOPCODE_DATA;
-                            current_block = 410770814531635848;
-                            break;
-                        } else {
-                            prev = *data
-                                .offset(
-                                    dataIndex.wrapping_sub(2 as ::core::ffi::c_uint) as isize,
-                                );
-                            BEReadU8(sIn, &raw mut code);
-                            sResult = _dpi_put(
-                                prev,
-                                sOut,
-                                &raw mut typeLastRead,
-                                &raw mut typeLastReadCount,
-                                data,
-                                &raw mut dataIndex,
-                            );
-                            if sResult as ::core::ffi::c_uint
-                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                    as ::core::ffi::c_uint
-                            {
-                                returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                current_block = 410770814531635848;
-                                break;
-                            } else {
-                                sResult = read255Short(sIn, &raw mut val);
-                                if sResult as ::core::ffi::c_uint
-                                    != EOT_STREAM_OK as ::core::ffi::c_int
-                                        as ::core::ffi::c_uint
-                                {
-                                    returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                    current_block = 410770814531635848;
-                                    break;
-                                } else {
-                                    sResult = _dpi_put(
-                                        val,
-                                        sOut,
-                                        &raw mut typeLastRead,
-                                        &raw mut typeLastReadCount,
-                                        data,
-                                        &raw mut dataIndex,
-                                    );
-                                    if sResult as ::core::ffi::c_uint
-                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                            as ::core::ffi::c_uint
-                                    {
-                                        returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                        current_block = 410770814531635848;
-                                        break;
-                                    } else {
-                                        sResult = _dpi_put(
-                                            prev,
-                                            sOut,
-                                            &raw mut typeLastRead,
-                                            &raw mut typeLastReadCount,
-                                            data,
-                                            &raw mut dataIndex,
-                                        );
-                                        if sResult as ::core::ffi::c_uint
-                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                as ::core::ffi::c_uint
-                                        {
-                                            returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                            current_block = 410770814531635848;
-                                            break;
-                                        } else {
-                                            sResult = read255Short(sIn, &raw mut val);
-                                            if sResult as ::core::ffi::c_uint
-                                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                                    as ::core::ffi::c_uint
-                                            {
-                                                returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                                current_block = 410770814531635848;
-                                                break;
-                                            } else {
-                                                sResult = _dpi_put(
-                                                    val,
-                                                    sOut,
-                                                    &raw mut typeLastRead,
-                                                    &raw mut typeLastReadCount,
-                                                    data,
-                                                    &raw mut dataIndex,
-                                                );
-                                                if sResult as ::core::ffi::c_uint
-                                                    != EOT_STREAM_OK as ::core::ffi::c_int
-                                                        as ::core::ffi::c_uint
-                                                {
-                                                    returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                                    current_block = 410770814531635848;
-                                                    break;
-                                                } else {
-                                                    sResult = _dpi_put(
-                                                        prev,
-                                                        sOut,
-                                                        &raw mut typeLastRead,
-                                                        &raw mut typeLastReadCount,
-                                                        data,
-                                                        &raw mut dataIndex,
-                                                    );
-                                                    if !(sResult as ::core::ffi::c_uint
-                                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                                            as ::core::ffi::c_uint)
-                                                    {
-                                                        continue;
-                                                    }
-                                                    returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                                                    current_block = 410770814531635848;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                remaining -= 3;
+                prev = data[(dataIndex - 2) as usize];
+                code = sIn.be_read_u8()?;
+                _dpi_put2(prev, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                val = read255Short2(sIn)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(prev, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+            }
+            0xFC => {
+                if remaining < 5 || dataIndex < 2 {
+                    return Err(Error::CORRUPT_HOPCODE_DATA);
                 }
-                _ => {
-                    sResult = read255Short(sIn, &raw mut val);
-                    if sResult as ::core::ffi::c_uint
-                        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                    {
-                        returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-                        current_block = 410770814531635848;
-                        break;
-                    } else {
-                        sResult = _dpi_put(
-                            val,
-                            sOut,
-                            &raw mut typeLastRead,
-                            &raw mut typeLastReadCount,
-                            data,
-                            &raw mut dataIndex,
-                        );
-                        remaining = remaining.wrapping_sub(1);
-                    }
-                }
+                remaining -= 5;
+                prev = data[(dataIndex - 2) as usize];
+                code = sIn.be_read_u8()?;
+                _dpi_put2(prev, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                val = read255Short2(sIn)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(prev, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                val = read255Short2(sIn)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(prev, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+            }
+            _ => {
+                val = read255Short2(sIn)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                remaining -= 1;
             }
         }
     }
-    match current_block {
-        1134115459065347084 => {
-            sResult = _dpi_dump(
-                sOut,
-                &raw mut typeLastRead,
-                &raw mut typeLastReadCount,
-                data,
-                &raw mut dataIndex,
-            );
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                returnedStatus = EOT_SECOND_STREAM_INCOMPLETE;
-            } else {
-                returnedStatus = EOT_SUCCESS;
-            }
-        }
-        _ => {}
-    }
-    free(data as *mut ::core::ffi::c_void);
-    return returnedStatus;
+
+    _dpi_dump2(sOut, &mut typeLastRead, &mut typeLastReadCount, &mut data, &mut dataIndex)
+        .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+    Ok(())
 }
 
-pub unsafe fn _dsg_makeFlags(
-    mut x: int16_t,
-    mut y: int16_t,
+fn _dsg_makeFlags(
+    mut x: i16,
+    mut y: i16,
     mut onCurve: bool,
     mut firstTime: bool,
-) -> uint8_t {
-    let FLG_ON_CURVE: uint8_t = 0x1 as uint8_t;
-    let FLG_X_SHORT: uint8_t = 0x2 as uint8_t;
-    let FLG_Y_SHORT: uint8_t = 0x4 as uint8_t;
-    let FLG_X_SAME: uint8_t = 0x10 as uint8_t;
-    let FLG_Y_SAME: uint8_t = 0x20 as uint8_t;
-    let mut ret: uint8_t = 0 as uint8_t;
+) -> u8 {
+    let FLG_ON_CURVE: u8 = 0x1 as u8;
+    let FLG_X_SHORT: u8 = 0x2 as u8;
+    let FLG_Y_SHORT: u8 = 0x4 as u8;
+    let FLG_X_SAME: u8 = 0x10 as u8;
+    let FLG_Y_SAME: u8 = 0x20 as u8;
+    let mut ret: u8 = 0 as u8;
     if onCurve {
         ret = (ret as ::core::ffi::c_int | FLG_ON_CURVE as ::core::ffi::c_int)
-            as uint8_t;
+            as u8;
     }
     if !firstTime && x as ::core::ffi::c_int == 0 as ::core::ffi::c_int {
-        ret = (ret as ::core::ffi::c_int | FLG_X_SAME as ::core::ffi::c_int) as uint8_t;
+        ret = (ret as ::core::ffi::c_int | FLG_X_SAME as ::core::ffi::c_int) as u8;
     } else if -(256 as ::core::ffi::c_int) < x as ::core::ffi::c_int
         && (x as ::core::ffi::c_int) < 0 as ::core::ffi::c_int
     {
-        ret = (ret as ::core::ffi::c_int | FLG_X_SHORT as ::core::ffi::c_int) as uint8_t;
+        ret = (ret as ::core::ffi::c_int | FLG_X_SHORT as ::core::ffi::c_int) as u8;
     } else if 0 as ::core::ffi::c_int <= x as ::core::ffi::c_int
         && (x as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
     {
-        ret = (ret as ::core::ffi::c_int | FLG_X_SHORT as ::core::ffi::c_int) as uint8_t;
-        ret = (ret as ::core::ffi::c_int | FLG_X_SAME as ::core::ffi::c_int) as uint8_t;
+        ret = (ret as ::core::ffi::c_int | FLG_X_SHORT as ::core::ffi::c_int) as u8;
+        ret = (ret as ::core::ffi::c_int | FLG_X_SAME as ::core::ffi::c_int) as u8;
     }
     if !firstTime && y as ::core::ffi::c_int == 0 as ::core::ffi::c_int {
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SAME as ::core::ffi::c_int) as uint8_t;
+        ret = (ret as ::core::ffi::c_int | FLG_Y_SAME as ::core::ffi::c_int) as u8;
     } else if -(256 as ::core::ffi::c_int) < y as ::core::ffi::c_int
         && (y as ::core::ffi::c_int) < 0 as ::core::ffi::c_int
     {
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SHORT as ::core::ffi::c_int) as uint8_t;
+        ret = (ret as ::core::ffi::c_int | FLG_Y_SHORT as ::core::ffi::c_int) as u8;
     } else if 0 as ::core::ffi::c_int <= y as ::core::ffi::c_int
         && (y as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
     {
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SHORT as ::core::ffi::c_int) as uint8_t;
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SAME as ::core::ffi::c_int) as uint8_t;
+        ret = (ret as ::core::ffi::c_int | FLG_Y_SHORT as ::core::ffi::c_int) as u8;
+        ret = (ret as ::core::ffi::c_int | FLG_Y_SAME as ::core::ffi::c_int) as u8;
     }
     return ret;
 }
 
-pub unsafe fn decodeSimpleGlyph(
-    mut numContours: int16_t,
-    mut streams: &[*mut Stream],
-    mut out: *mut Stream,
-    mut calculateBoundingBox: bool,
-    mut minX: int16_t,
-    mut minY: int16_t,
-    mut maxX: int16_t,
-    mut maxY: int16_t,
-) -> EOTError {
-    let mut currX: ::core::ffi::c_uint = 0;
-    let mut currY: ::core::ffi::c_uint = 0;
-    let mut codeSizeLocation: ::core::ffi::c_uint = 0;
-    let mut pushCount: uint16_t = 0;
-    let mut result: EOTError = EOT_SUCCESS;
-    let mut codeSize: uint16_t = 0;
-    let mut unpackedCodeSize: ::core::ffi::c_uint = 0;
-    let mut currPos: ::core::ffi::c_uint = 0;
-    let mut current_block: u64;
-    if numContours as ::core::ffi::c_int == 0 as ::core::ffi::c_int {
-        return EOT_SUCCESS;
+fn decodeSimpleGlyph(
+    numContours: i16,
+    streams: &mut [Stream2],
+    out: &mut Stream2,
+    calculateBoundingBox: bool,
+    mut minX: i16,
+    mut minY: i16,
+    mut maxX: i16,
+    mut maxY: i16,
+) -> Result<(), Error> {
+    if numContours == 0 {
+        return Ok(());
     }
-    let mut in_0: *mut Stream = streams[0];
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    let mut returnedStatus: EOTError = EOT_SUCCESS;
-    let mut boundingBoxLocation: ::core::ffi::c_uint = 0;
-    sResult = BEWriteS16(out, numContours);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
+
+    let mut boundingBoxLocation = None;
+
+    out.be_write_i16(numContours)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+
     if calculateBoundingBox {
-        boundingBoxLocation = (*out).pos;
-        sResult = seekRelativeThroughReserve(
-            out,
-            (4 as usize).wrapping_mul(::core::mem::size_of::<int16_t>() as usize)
-                as ::core::ffi::c_int,
-        );
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        minX = INT16_MAX as int16_t;
-        minY = INT16_MAX as int16_t;
-        maxX = INT16_MIN as int16_t;
-        maxY = INT16_MIN as int16_t;
+        boundingBoxLocation = Some(out.pos);
+        out.seek_relative_through_reserve(4 * size_of::<i16>() as isize)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        minX = i16::MAX;
+        minY = i16::MAX;
+        maxX = i16::MIN;
+        maxY = i16::MIN;
     } else {
-        sResult = BEWriteS16(out, minX);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEWriteS16(out, minY);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEWriteS16(out, maxX);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEWriteS16(out, maxY);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
+        // FIXME: why are we returning CORRUPT_FILE and not LOGIC_ERROR here?
+        out.be_write_i16(minX)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(minY)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(maxX)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(maxY)
+            .map_err(|_| Error::CORRUPT_FILE)?;
     }
-    let mut totalPoints: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < numContours as ::core::ffi::c_uint {
-        if i == 0 as ::core::ffi::c_uint {
-            totalPoints = 1 as ::core::ffi::c_uint;
+
+    let mut totalPoints: usize = 0;
+    for i in 0..numContours {
+        if i == 0 {
+            totalPoints = 1;
         }
-        let mut pointsInContour: uint16_t = 0;
-        sResult = read255UShort(in_0, &raw mut pointsInContour);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        totalPoints = totalPoints.wrapping_add(pointsInContour as ::core::ffi::c_uint);
-        sResult = BEWriteS16(
-            out,
-            totalPoints.wrapping_sub(1 as ::core::ffi::c_uint) as int16_t,
-        );
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        i = i.wrapping_add(1);
+        let pointsInContour = read255UShort2(&mut streams[0])
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        totalPoints += pointsInContour as usize;
+        out.be_write_i16((totalPoints - 1) as _)
+            .map_err(|_| Error::CORRUPT_FILE)?;
     }
-    
-    
-    
-    
-    
-    let mut flags:  *mut uint8_t =
-     malloc(
-        (totalPoints as size_t).wrapping_mul(::core::mem::size_of::<uint8_t>() as size_t),
-    ) as *mut uint8_t;let mut xCoords:  *mut int16_t =
-     malloc(
-        (totalPoints as size_t).wrapping_mul(::core::mem::size_of::<int16_t>() as size_t),
-    ) as *mut int16_t;let mut yCoords:  *mut int16_t =
-     malloc(
-        (totalPoints as size_t).wrapping_mul(::core::mem::size_of::<int16_t>() as size_t),
-    ) as *mut int16_t;
-    if flags.is_null() || xCoords.is_null() || yCoords.is_null() {
-        returnedStatus = EOT_CANT_ALLOCATE_MEMORY;
-    } else {
-        let mut i_0: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        loop {
-            if !(i_0 < totalPoints) {
-                current_block = 6450597802325118133;
-                break;
+
+    let mut flags = vec![0u8; totalPoints as _];
+    let mut xCoords = vec![0i16; totalPoints as _];
+    let mut yCoords = vec![0i16; totalPoints as _];
+
+    // Read X-Y coordinates in shitty format described here:
+    // http://www.w3.org/Submission/MTX/#TripletEncoding
+    // First flags and then actual coordinates.
+
+    for i in 0..totalPoints {
+        flags[i] = streams[0].be_read_u8()
+            .map_err(|_| Error::CORRUPT_FILE)?;
+    }
+
+    let mut currX = 0u32;
+    let mut currY = 0u32;
+
+    for i in 0..totalPoints {
+        let enc = tripletEncodings[(flags[i] & 0x7F) as usize];
+        let moreBytes = (enc.byteCount - 1) as usize;
+
+        if streams[0].pos + moreBytes > streams[0].buf.len() {
+            return Err(Error::CORRUPT_FILE);
+        }
+
+        // FIXME: stupid copying, probably don't even need a stream for this.
+        let mut coords = Stream2::new(0);
+        coords.buf = (&streams[0].buf[streams[0].pos..streams[0].pos + moreBytes]).into();
+
+        let dx: u32 = coords.read_n_bits(enc.xBits)?; // logic error
+        let dy: u32 = coords.read_n_bits(enc.yBits)?; // logic error
+        if coords.pos != coords.buf.len() || coords.bit_pos != 0 {
+            return Err(Error::LOGIC_ERROR);
+        }
+        streams[0].seek_relative(coords.buf.len() as _)?; // logic error
+
+        xCoords[i] = (enc.xSign * (dx + enc.deltaX) as i32) as _;
+        yCoords[i] = (enc.ySign * (dy + enc.deltaY) as i32) as _;
+
+        currX = currX.wrapping_add(xCoords[i] as i32 as u32);
+        currY = currY.wrapping_add(yCoords[i] as i32 as u32);
+
+        minX = minX.min(currX as i16);
+        maxX = maxX.max(currX as i16);
+        minY = minY.min(currY as i16);
+        maxY = maxY.max(currY as i16);
+    }
+
+    // Coordinates are known now, but we need to handle instructions before they can be output.
+
+    // advance past the code size output
+    let codeSizeLocation = out.pos as u32;
+    out.seek_relative_through_reserve(size_of::<u16>() as _)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+
+    // decode the push instructions for the glyph
+    let pushCount = read255UShort2(&mut streams[0])
+        .map_err(|_| Error::CORRUPT_FILE)? as u16;
+    decodePushInstructions2(&mut streams[1], out, pushCount as _)?;
+    let codeSize = read255UShort2(&mut streams[0])
+        .map_err(|_| Error::CORRUPT_FILE)?;
+
+    // copy over the rest of the instructions for the glyph
+    for _ in 0..codeSize {
+        out.be_write_u8(
+            streams[2].be_read_u8()
+                .map_err(|_| Error::CORRUPT_FILE)?
+        )
+            .map_err(|_| Error::CORRUPT_FILE)?;
+    }
+
+    // the below will be zero if we didn't go through the if (numContours > 0) block.
+    let unpackedCodeSize = out.pos as u32 - (codeSizeLocation + size_of::<u16>() as u32);
+    // FIXME: Figure out if there is a huge savings from using the 'repeat' flag
+    // and if so, use it. (but I kinda doubt there is.)
+    for i in 0..totalPoints {
+        let outFlags = _dsg_makeFlags(xCoords[i], yCoords[i], flags[i] & 0x80 == 0, i == 0);
+        out.be_write_u8(outFlags)
+            .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
+    }
+
+    for i in 0..totalPoints {
+        let mut x = xCoords[i];
+        if i == 0 || x != 0 {
+            if -256 < x && x < 0 {
+                x *= -1;
             }
-            sResult = BEReadU8(in_0, flags.offset(i_0 as isize) as *mut uint8_t);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                returnedStatus = EOT_CANT_ALLOCATE_MEMORY;
-                current_block = 17468087227630049781;
-                break;
+            if 0 <= x && x < 256 {
+                out.be_write_u8(x as _)
+                    .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
             } else {
-                i_0 = i_0.wrapping_add(1);
-            }
-        }
-        match current_block {
-            17468087227630049781 => {}
-            _ => {
-                currX = 0 as ::core::ffi::c_uint;
-                currY = 0 as ::core::ffi::c_uint;
-                let mut i_1: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-                loop {
-                    if !(i_1 < totalPoints) {
-                        current_block = 15594603006322722090;
-                        break;
-                    }
-                    let enc: TripletEncoding = *(&raw const tripletEncodings
-                        as *const TripletEncoding)
-                        .offset(
-                            (*flags.offset(i_1 as isize) as ::core::ffi::c_int
-                                & 0x7f as ::core::ffi::c_int) as isize,
-                        );
-                    let mut moreBytes: ::core::ffi::c_uint = enc
-                        .byteCount
-                        .wrapping_sub(1 as ::core::ffi::c_uint);
-                    if (*in_0).pos.wrapping_add(moreBytes) > (*in_0).size {
-                        returnedStatus = EOT_CORRUPT_FILE;
-                        current_block = 17468087227630049781;
-                        break;
-                    } else {
-                        let mut coords: Stream = constructStream(
-                            (*in_0).buf.offset((*in_0).pos as isize),
-                            moreBytes,
-                        );
-                        let mut dx: uint32_t = 0;
-                        let mut dy: uint32_t = 0;
-                        sResult = readNBits(&raw mut coords, &raw mut dx, enc.xBits);
-                        if sResult as ::core::ffi::c_uint
-                            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                        {
-                            returnedStatus = EOT_LOGIC_ERROR;
-                            current_block = 17468087227630049781;
-                            break;
-                        } else {
-                            sResult = readNBits(&raw mut coords, &raw mut dy, enc.yBits);
-                            if sResult as ::core::ffi::c_uint
-                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                    as ::core::ffi::c_uint
-                            {
-                                returnedStatus = EOT_LOGIC_ERROR;
-                                current_block = 17468087227630049781;
-                                break;
-                            } else if coords.pos != coords.size
-                                || coords.bitPos != 0 as ::core::ffi::c_uint
-                            {
-                                returnedStatus = EOT_LOGIC_ERROR;
-                                current_block = 17468087227630049781;
-                                break;
-                            } else {
-                                sResult = seekRelative(
-                                    in_0,
-                                    coords.size as ::core::ffi::c_int,
-                                );
-                                if sResult as ::core::ffi::c_uint
-                                    != EOT_STREAM_OK as ::core::ffi::c_int
-                                        as ::core::ffi::c_uint
-                                {
-                                    returnedStatus = EOT_LOGIC_ERROR;
-                                    current_block = 17468087227630049781;
-                                    break;
-                                } else {
-                                    *xCoords.offset(i_1 as isize) = (enc.xSign as uint32_t)
-                                        .wrapping_mul(dx.wrapping_add(enc.deltaX as uint32_t))
-                                        as int16_t;
-                                    currX = currX
-                                        .wrapping_add(
-                                            *xCoords.offset(i_1 as isize) as ::core::ffi::c_uint,
-                                        );
-                                    *yCoords.offset(i_1 as isize) = (enc.ySign as uint32_t)
-                                        .wrapping_mul(dy.wrapping_add(enc.deltaY as uint32_t))
-                                        as int16_t;
-                                    currY = currY
-                                        .wrapping_add(
-                                            *yCoords.offset(i_1 as isize) as ::core::ffi::c_uint,
-                                        );
-                                    minX = i16min(minX, currX as int16_t);
-                                    maxX = i16max(maxX, currX as int16_t);
-                                    minY = i16min(minY, currY as int16_t);
-                                    maxY = i16max(maxY, currY as int16_t);
-                                    i_1 = i_1.wrapping_add(1);
-                                }
-                            }
-                        }
-                    }
-                }
-                match current_block {
-                    17468087227630049781 => {}
-                    _ => {
-                        codeSizeLocation = (*out).pos;
-                        sResult = seekRelativeThroughReserve(
-                            out,
-                            ::core::mem::size_of::<uint16_t>() as ::core::ffi::c_int,
-                        );
-                        if sResult as ::core::ffi::c_uint
-                            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-                        {
-                            returnedStatus = EOT_CORRUPT_FILE;
-                        } else {
-                            pushCount = 0;
-                            sResult = read255UShort(in_0, &raw mut pushCount);
-                            if sResult as ::core::ffi::c_uint
-                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                    as ::core::ffi::c_uint
-                            {
-                                returnedStatus = EOT_CORRUPT_FILE;
-                            } else {
-                                result = decodePushInstructions(
-                                    streams[1],
-                                    out,
-                                    pushCount as ::core::ffi::c_uint,
-                                );
-                                if result as ::core::ffi::c_uint
-                                    != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-                                    && (result as ::core::ffi::c_uint)
-                                        < EOT_WARN as ::core::ffi::c_uint
-                                {
-                                    returnedStatus = result;
-                                } else {
-                                    codeSize = 0;
-                                    sResult = read255UShort(in_0, &raw mut codeSize);
-                                    if sResult as ::core::ffi::c_uint
-                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                            as ::core::ffi::c_uint
-                                    {
-                                        returnedStatus = EOT_CORRUPT_FILE;
-                                    } else {
-                                        sResult = streamCopy(
-                                            streams[2],
-                                            out,
-                                            codeSize as ::core::ffi::c_uint,
-                                        );
-                                        if sResult as ::core::ffi::c_uint
-                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                as ::core::ffi::c_uint
-                                        {
-                                            returnedStatus = EOT_CORRUPT_FILE;
-                                        } else {
-                                            unpackedCodeSize = ((*out).pos as usize)
-                                                .wrapping_sub(
-                                                    (codeSizeLocation as usize)
-                                                        .wrapping_add(::core::mem::size_of::<uint16_t>() as usize),
-                                                ) as ::core::ffi::c_uint;
-                                            let mut i_2: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-                                            loop {
-                                                if !(i_2 < totalPoints) {
-                                                    current_block = 14329534724295951598;
-                                                    break;
-                                                }
-                                                let mut outFlags: uint8_t = _dsg_makeFlags(
-                                                    *xCoords.offset(i_2 as isize),
-                                                    *yCoords.offset(i_2 as isize),
-                                                    *flags.offset(i_2 as isize) as ::core::ffi::c_int
-                                                        & 0x80 as ::core::ffi::c_int == 0,
-                                                    i_2 == 0 as ::core::ffi::c_uint,
-                                                );
-                                                sResult = BEWriteU8(out, outFlags);
-                                                if sResult as ::core::ffi::c_uint
-                                                    != EOT_STREAM_OK as ::core::ffi::c_int
-                                                        as ::core::ffi::c_uint
-                                                {
-                                                    returnedStatus = EOT_UNKNOWN_BUFFER_WRITE_ERROR;
-                                                    current_block = 17468087227630049781;
-                                                    break;
-                                                } else {
-                                                    i_2 = i_2.wrapping_add(1);
-                                                }
-                                            }
-                                            match current_block {
-                                                17468087227630049781 => {}
-                                                _ => {
-                                                    let mut i_3: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-                                                    loop {
-                                                        if !(i_3 < totalPoints) {
-                                                            current_block = 1428307939028130064;
-                                                            break;
-                                                        }
-                                                        let mut x: int16_t = *xCoords.offset(i_3 as isize);
-                                                        if i_3 == 0 as ::core::ffi::c_uint
-                                                            || x as ::core::ffi::c_int != 0 as ::core::ffi::c_int
-                                                        {
-                                                            if -(256 as ::core::ffi::c_int) < x as ::core::ffi::c_int
-                                                                && (x as ::core::ffi::c_int) < 0 as ::core::ffi::c_int
-                                                            {
-                                                                x = (x as ::core::ffi::c_int * -(1 as ::core::ffi::c_int))
-                                                                    as int16_t;
-                                                            }
-                                                            if 0 as ::core::ffi::c_int <= x as ::core::ffi::c_int
-                                                                && (x as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
-                                                            {
-                                                                sResult = BEWriteU8(out, x as uint8_t);
-                                                            } else {
-                                                                sResult = BEWriteS16(out, x);
-                                                            }
-                                                            if sResult as ::core::ffi::c_uint
-                                                                != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                    as ::core::ffi::c_uint
-                                                            {
-                                                                returnedStatus = EOT_UNKNOWN_BUFFER_WRITE_ERROR;
-                                                                current_block = 17468087227630049781;
-                                                                break;
-                                                            }
-                                                        }
-                                                        i_3 = i_3.wrapping_add(1);
-                                                    }
-                                                    match current_block {
-                                                        17468087227630049781 => {}
-                                                        _ => {
-                                                            let mut i_4: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-                                                            loop {
-                                                                if !(i_4 < totalPoints) {
-                                                                    current_block = 14913924298693586572;
-                                                                    break;
-                                                                }
-                                                                let mut y: int16_t = *yCoords.offset(i_4 as isize);
-                                                                if i_4 == 0 as ::core::ffi::c_uint
-                                                                    || y as ::core::ffi::c_int != 0 as ::core::ffi::c_int
-                                                                {
-                                                                    if -(256 as ::core::ffi::c_int) < y as ::core::ffi::c_int
-                                                                        && (y as ::core::ffi::c_int) < 0 as ::core::ffi::c_int
-                                                                    {
-                                                                        y = (y as ::core::ffi::c_int * -(1 as ::core::ffi::c_int))
-                                                                            as int16_t;
-                                                                    }
-                                                                    if 0 as ::core::ffi::c_int <= y as ::core::ffi::c_int
-                                                                        && (y as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
-                                                                    {
-                                                                        sResult = BEWriteU8(out, y as uint8_t);
-                                                                    } else {
-                                                                        sResult = BEWriteS16(out, y);
-                                                                    }
-                                                                    if sResult as ::core::ffi::c_uint
-                                                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                            as ::core::ffi::c_uint
-                                                                    {
-                                                                        returnedStatus = EOT_UNKNOWN_BUFFER_WRITE_ERROR;
-                                                                        current_block = 17468087227630049781;
-                                                                        break;
-                                                                    }
-                                                                }
-                                                                i_4 = i_4.wrapping_add(1);
-                                                            }
-                                                            match current_block {
-                                                                17468087227630049781 => {}
-                                                                _ => {
-                                                                    currPos = (*out).pos;
-                                                                    sResult = seekAbsoluteThroughReserve(out, codeSizeLocation);
-                                                                    if sResult as ::core::ffi::c_uint
-                                                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                            as ::core::ffi::c_uint
-                                                                    {
-                                                                        return EOT_CORRUPT_FILE;
-                                                                    }
-                                                                    sResult = BEWriteU16(out, unpackedCodeSize as uint16_t);
-                                                                    if sResult as ::core::ffi::c_uint
-                                                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                            as ::core::ffi::c_uint
-                                                                    {
-                                                                        return EOT_CORRUPT_FILE;
-                                                                    }
-                                                                    if sResult as ::core::ffi::c_uint
-                                                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                            as ::core::ffi::c_uint
-                                                                    {
-                                                                        return EOT_CORRUPT_FILE;
-                                                                    }
-                                                                    sResult = seekAbsoluteThroughReserve(out, currPos);
-                                                                    if sResult as ::core::ffi::c_uint
-                                                                        != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                            as ::core::ffi::c_uint
-                                                                    {
-                                                                        return EOT_CORRUPT_FILE;
-                                                                    }
-                                                                    if calculateBoundingBox {
-                                                                        let mut endPos: ::core::ffi::c_uint = (*out).pos;
-                                                                        sResult = seekAbsoluteThroughReserve(
-                                                                            out,
-                                                                            boundingBoxLocation,
-                                                                        );
-                                                                        if sResult as ::core::ffi::c_uint
-                                                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                                as ::core::ffi::c_uint
-                                                                        {
-                                                                            return EOT_CORRUPT_FILE;
-                                                                        }
-                                                                        sResult = BEWriteS16(out, minX);
-                                                                        if sResult as ::core::ffi::c_uint
-                                                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                                as ::core::ffi::c_uint
-                                                                        {
-                                                                            return EOT_CORRUPT_FILE;
-                                                                        }
-                                                                        sResult = BEWriteS16(out, minY);
-                                                                        if sResult as ::core::ffi::c_uint
-                                                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                                as ::core::ffi::c_uint
-                                                                        {
-                                                                            return EOT_CORRUPT_FILE;
-                                                                        }
-                                                                        sResult = BEWriteS16(out, maxX);
-                                                                        if sResult as ::core::ffi::c_uint
-                                                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                                as ::core::ffi::c_uint
-                                                                        {
-                                                                            return EOT_CORRUPT_FILE;
-                                                                        }
-                                                                        sResult = BEWriteS16(out, maxY);
-                                                                        if sResult as ::core::ffi::c_uint
-                                                                            != EOT_STREAM_OK as ::core::ffi::c_int
-                                                                                as ::core::ffi::c_uint
-                                                                        {
-                                                                            return EOT_CORRUPT_FILE;
-                                                                        }
-                                                                        sResult = seekAbsoluteThroughReserve(out, endPos);
-                                                                    }
-                                                                    returnedStatus = EOT_SUCCESS;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                out.be_write_i16(x)
+                    .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
             }
         }
     }
-    free(flags as *mut ::core::ffi::c_void);
-    free(xCoords as *mut ::core::ffi::c_void);
-    free(yCoords as *mut ::core::ffi::c_void);
-    return returnedStatus;
+
+    for i in 0..totalPoints {
+        let mut y = yCoords[i];
+        if i == 0 || y != 0 {
+            if -256 < y && y < 0 {
+                y *= -1;
+            }
+            if 0 <= y && y < 256 {
+                out.be_write_u8(y as _)
+                    .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
+            } else {
+                out.be_write_i16(y)
+                    .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
+            }
+        }
+    }
+
+    let currPos = out.pos;
+    out.seek_absolute_through_reserve(codeSizeLocation as _)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_u16(unpackedCodeSize as _)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    out.seek_absolute_through_reserve(currPos)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+
+    if calculateBoundingBox {
+        let endPos = out.pos;
+        out.seek_absolute_through_reserve(boundingBoxLocation.unwrap())
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(minX)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(minY)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(maxX)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(maxY)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.seek_absolute_through_reserve(endPos as _)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+    }
+
+    Ok(())
 }
 
-pub unsafe fn decodeCompositeGlyph(
-    streams: &[*mut Stream],
-    mut out: *mut Stream,
-) -> EOTError {
-    let FLG_ARGS_WORDS: uint16_t = 0x1 as uint16_t;
-    let FLG_HAVE_SCALE: uint16_t = 0x8 as uint16_t;
-    let FLG_MORE_COMPONENTS: uint16_t = 0x20 as uint16_t;
-    let FLG_HAVE_XY_SCALE: uint16_t = 0x40 as uint16_t;
-    let FLG_HAVE_2_BY_2: uint16_t = 0x80 as uint16_t;
-    let FLG_HAVE_INSTR: uint16_t = 0x100 as uint16_t;
-    let mut in_0: *mut Stream = streams[0];
-    let mut minX: int16_t = 0;
-    let mut minY: int16_t = 0;
-    let mut maxX: int16_t = 0;
-    let mut maxY: int16_t = 0;
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    sResult = BEWriteS16(out, -(1 as ::core::ffi::c_int) as int16_t);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEReadS16(in_0, &raw mut minX);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEReadS16(in_0, &raw mut minY);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEReadS16(in_0, &raw mut maxX);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEReadS16(in_0, &raw mut maxY);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEWriteS16(out, minX);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEWriteS16(out, minY);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEWriteS16(out, maxX);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    sResult = BEWriteS16(out, maxY);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    let mut flags: uint16_t = 0;
+fn decodeCompositeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<(), Error> {
+    // we don't need to interpret very much here, just the flags to know how much to pass along
+    // into the output.
+    const FLG_ARGS_WORDS: u16 = 0x1;
+    const FLG_HAVE_SCALE: u16 = 0x8;
+    const FLG_MORE_COMPONENTS: u16 = 0x20;
+    const FLG_HAVE_XY_SCALE: u16 = 0x40;
+    const FLG_HAVE_2_BY_2: u16 = 0x80;
+    const FLG_HAVE_INSTR: u16 = 0x100;
+
+    out.be_write_i16(-1)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    let minX = streams[0].be_read_i16()
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    let minY = streams[0].be_read_i16()
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    let maxX = streams[0].be_read_i16()
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    let maxY = streams[0].be_read_i16()
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(minX)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(minY)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(maxX)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(maxY)
+        .map_err(|_| Error::CORRUPT_FILE)?;
+
+    let mut flags = 0u16;
     loop {
-        sResult = BEReadU16(in_0, &raw mut flags);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
+        flags = streams[0].be_read_u16()
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_u16(flags)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_u8(
+            streams[0].be_read_u8()
+                .map_err(|_| Error::CORRUPT_FILE)?
+        )
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_u8(
+            streams[0].be_read_u8()
+                .map_err(|_| Error::CORRUPT_FILE)?
+        )
+            .map_err(|_| Error::CORRUPT_FILE)?;
+
+        let args_length = if flags & FLG_ARGS_WORDS != 0 { 4 } else { 2 };
+        for _ in 0..args_length {
+            out.be_write_u8(
+                streams[0].be_read_u8()
+                    .map_err(|_| Error::CORRUPT_FILE)?
+            )
+                .map_err(|_| Error::CORRUPT_FILE)?;
         }
-        sResult = BEWriteU16(out, flags);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = streamCopy(in_0, out, 2 as ::core::ffi::c_uint);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        let mut argsLength: ::core::ffi::c_uint = (if flags as ::core::ffi::c_int
-            & FLG_ARGS_WORDS as ::core::ffi::c_int != 0
-        {
-            4 as ::core::ffi::c_int
+
+        let transform_bytes = if flags & FLG_HAVE_2_BY_2 != 0 {
+            8
+        } else if flags & FLG_HAVE_XY_SCALE != 0 {
+            4
+        } else if flags & FLG_HAVE_SCALE != 0 {
+            2
         } else {
-            2 as ::core::ffi::c_int
-        }) as ::core::ffi::c_uint;
-        sResult = streamCopy(in_0, out, argsLength);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
+            0
+        };
+        for _ in 0..transform_bytes {
+            out.be_write_u8(
+                streams[0].be_read_u8()
+                    .map_err(|_| Error::CORRUPT_FILE)?
+            )
+                .map_err(|_| Error::CORRUPT_FILE)?;
         }
-        let mut transformBytes: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-        if flags as ::core::ffi::c_int & FLG_HAVE_2_BY_2 as ::core::ffi::c_int != 0 {
-            transformBytes = 8 as ::core::ffi::c_uint;
-        } else if flags as ::core::ffi::c_int & FLG_HAVE_XY_SCALE as ::core::ffi::c_int
-            != 0
-        {
-            transformBytes = 4 as ::core::ffi::c_uint;
-        } else if flags as ::core::ffi::c_int & FLG_HAVE_SCALE as ::core::ffi::c_int != 0
-        {
-            transformBytes = 2 as ::core::ffi::c_uint;
-        }
-        sResult = streamCopy(in_0, out, transformBytes);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        if !(flags as ::core::ffi::c_int & FLG_MORE_COMPONENTS as ::core::ffi::c_int
-            != 0)
-        {
+
+        if flags & FLG_MORE_COMPONENTS == 0 {
             break;
         }
     }
-    if flags as ::core::ffi::c_int & FLG_HAVE_INSTR as ::core::ffi::c_int != 0 {
-        
-        let mut numInstrLocation: ::core::ffi::c_uint = (*out).pos;
-        sResult = seekRelativeThroughReserve(
-            out,
-            ::core::mem::size_of::<uint16_t>() as ::core::ffi::c_int,
-        );
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
+
+    if flags & FLG_HAVE_INSTR != 0 {
+        // https://learn.microsoft.com/en-us/typography/opentype/spec/glyf 
+        // uint16 numInstr
+        let mut numInstrLocation = out.pos;
+        out.seek_relative_through_reserve(2)
+            .map_err(|_| Error::CORRUPT_FILE)?;
+
+        // decode the push instructions for the glyph
+        let pushCount = read255UShort2(&mut streams[0])
+            .map_err(|_| Error::CORRUPT_FILE)? as u16;
+        decodePushInstructions2(&mut streams[1], out, pushCount as _)?;
+
+        // copy over the rest of the instructions for the glyph
+        let code_size = read255UShort2(&mut streams[0])
+            .map_err(|_| Error::CORRUPT_FILE)?;
+        for _ in 0..code_size {
+            out.be_write_u8(
+                streams[2].be_read_u8()
+                    .map_err(|_| Error::CORRUPT_FILE)?
+            )
+                .map_err(|_| Error::CORRUPT_FILE)?;
         }
-        let mut pushCount: uint16_t = 0;
-        sResult = read255UShort(in_0, &raw mut pushCount);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        let mut result: EOTError = decodePushInstructions(
-            streams[1],
-            out,
-            pushCount as ::core::ffi::c_uint,
-        );
-        if result as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            && (result as ::core::ffi::c_uint) < EOT_WARN as ::core::ffi::c_uint
-        {
-            return result;
-        }
-        let mut codeSize: uint16_t = 0;
-        sResult = read255UShort(in_0, &raw mut codeSize);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = streamCopy(
-            streams[2],
-            out,
-            codeSize as ::core::ffi::c_uint,
-        );
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        let mut numInstr:  uint16_t =
-     ((*out).pos as usize)
-            .wrapping_sub(
-                (numInstrLocation as usize)
-                    .wrapping_add(::core::mem::size_of::<uint16_t>() as usize),
-            ) as uint16_t;
-        if numInstr as ::core::ffi::c_int > 0 as ::core::ffi::c_int {
-            let mut currPos: ::core::ffi::c_uint = (*out).pos;
-            sResult = seekAbsoluteThroughReserve(out, numInstrLocation);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            sResult = BEWriteU16(out, numInstr);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            sResult = seekAbsoluteThroughReserve(out, currPos);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
+
+        let numInstr: u16 = ((out.pos as i32) - ((numInstrLocation as usize) + 2) as i32) as _;
+        if numInstr > 0 {
+            let currPos = out.pos;
+            out.seek_absolute_through_reserve(numInstrLocation as _)
+                .map_err(|_| Error::CORRUPT_FILE)?;
+            out.be_write_u16(numInstr)
+                .map_err(|_| Error::CORRUPT_FILE)?;
+            out.seek_absolute_through_reserve(currPos)
+                .map_err(|_| Error::CORRUPT_FILE)?;
         }
     }
-    return EOT_SUCCESS;
+
+    Ok(())
 }
 
-pub unsafe fn decodeGlyph(
-    streams: &[*mut Stream],
-    mut out: *mut Stream,
-) -> EOTError {
-    let mut in_0: *mut Stream = streams[0];
-    let mut numContours: int16_t = 0;
-    let mut xMin: int16_t = 0 as int16_t;
-    let mut yMin: int16_t = 0 as int16_t;
-    let mut xMax: int16_t = 0 as int16_t;
-    let mut yMax: int16_t = 0 as int16_t;
-    let mut calculateBoundingBox: bool = false_0 != 0;
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    sResult = BEReadS16(in_0, &raw mut numContours);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    if (numContours as ::core::ffi::c_int) < 0 as ::core::ffi::c_int {
-        let mut result: EOTError = decodeCompositeGlyph(streams, out);
-        if result as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            && (result as ::core::ffi::c_uint) < EOT_WARN as ::core::ffi::c_uint
-        {
-            return result;
-        }
+pub fn decodeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<(), Error> {
+    let mut in_0 = &mut streams[0];
+    let mut calculateBoundingBox: bool = false;
+
+    let numContours = in_0.be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
+    if numContours < 0 {
+        decodeCompositeGlyph(streams, out)?;
     } else {
-        if numContours as ::core::ffi::c_int == 0x7fff as ::core::ffi::c_int {
-            sResult = BEReadS16(in_0, &raw mut numContours);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            sResult = BEReadS16(in_0, &raw mut xMin);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            sResult = BEReadS16(in_0, &raw mut yMin);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            sResult = BEReadS16(in_0, &raw mut xMax);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
-            sResult = BEReadS16(in_0, &raw mut yMax);
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
-            }
+        let (xMin, yMin, xMax, yMax);
+        let actual_num_contours;
+        if numContours == 0x7fff {
+            actual_num_contours = in_0.be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
+            xMin = in_0.be_read_i16()?;
+            yMin = in_0.be_read_i16()?;
+            xMax = in_0.be_read_i16()?;
+            yMax = in_0.be_read_i16()?;
         } else {
-            calculateBoundingBox = true_0 != 0;
+            calculateBoundingBox = true;
+            (xMin, yMin, xMax, yMax) = (0, 0, 0, 0);
+            actual_num_contours = numContours;
         }
-        let mut result_0: EOTError = decodeSimpleGlyph(
-            numContours,
-            streams,
-            out,
-            calculateBoundingBox,
-            xMin,
-            yMin,
-            xMax,
-            yMax,
-        );
-        if result_0 as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            && (result_0 as ::core::ffi::c_uint) < EOT_WARN as ::core::ffi::c_uint
-        {
-            return result_0;
-        }
+        decodeSimpleGlyph(actual_num_contours, streams, out, calculateBoundingBox, xMin, yMin, xMax, yMax)?;
     }
-    return EOT_SUCCESS;
+
+    Ok(())
 }
 
-pub unsafe fn populateGlyfAndLoca(
-    mut glyf: *mut SFNTTable,
-    mut loca: *mut SFNTTable,
-    mut headData: *mut TTFheadData,
-    mut maxpData: *mut TTFmaxpData,
-    streams: &[*mut Stream],
-) -> EOTError {
-    let mut sCTF: *mut Stream = streams[0];
-    let mut sResult: StreamResult = seekAbsolute(sCTF, (*glyf).offset as _);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    let mut overranAllocatedSpace: bool = false_0 != 0;
-    let mut notEnoughGlyphs: bool = false_0 != 0;
-    seekAbsolute(
-        streams[1],
-        0 as ::core::ffi::c_uint,
-    );
-    seekAbsolute(
-        streams[2],
-        0 as ::core::ffi::c_uint,
-    );
-    let mut maxSimpleGlyphSize: ::core::ffi::c_uint = (10 as ::core::ffi::c_int
-        + 2 as ::core::ffi::c_int * (*maxpData).maxContours as ::core::ffi::c_int
-        + 2 as ::core::ffi::c_int
-        + (*maxpData).maxSizeOfInstructions as ::core::ffi::c_int
-        + (*maxpData).maxPoints as ::core::ffi::c_int * 5 as ::core::ffi::c_int)
-        as ::core::ffi::c_uint;
-    let mut maxCompoundGlyphSize: ::core::ffi::c_uint = (26 as ::core::ffi::c_int
-        + (*maxpData).maxSizeOfInstructions as ::core::ffi::c_int)
-        as ::core::ffi::c_uint;
-    let mut maxGlyphSize: ::core::ffi::c_uint = umax(
-        maxSimpleGlyphSize,
-        maxCompoundGlyphSize,
-    );
-    let mut maxTableSize: ::core::ffi::c_uint = ((*maxpData).numGlyphs
-        as ::core::ffi::c_uint)
-        .wrapping_mul(maxGlyphSize);
-    let mut sOut: Stream = constructStream(
-        ::core::ptr::null_mut::<uint8_t>(),
-        0 as ::core::ffi::c_uint,
-    );
-    reserve(&raw mut sOut, maxTableSize);
-    let mut sLocaOut: Stream = constructStream(
-        ::core::ptr::null_mut::<uint8_t>(),
-        0 as ::core::ffi::c_uint,
-    );
-    let mut shortLoca: bool = (*headData).indexToLocFormat == 0;
-    if shortLoca {
-        reserve(
-            &raw mut sLocaOut,
-            (2 as ::core::ffi::c_int
-                * ((*maxpData).numGlyphs as ::core::ffi::c_int
-                    + 1 as ::core::ffi::c_int)) as ::core::ffi::c_uint,
-        );
-        BEWriteU16(&raw mut sLocaOut, 0 as uint16_t);
+// https://developer.apple.com/fonts/TTRefMan/RM06/Chap6glyf.html
+// http://www.w3.org/Submission/MTX/#CTFGlyph
+pub fn populateGlyfAndLoca(
+    tables: &mut [SFNTTable],
+    glyf: usize,
+    loca: usize,
+    headData: &mut TTFheadData,
+    maxpData: &mut TTFmaxpData,
+    streams: &mut [Stream2],
+) -> Result<(), Error> {
+    let mut sctf = &mut streams[0];
+    sctf.seek_absolute(tables[glyf].offset as _)?;
+
+    let mut overranAllocatedSpace: bool = false;
+    let mut notEnoughGlyphs: bool = false;
+
+    streams[1].seek_absolute(0)?;
+    streams[2].seek_absolute(0)?;
+
+    let maxSimpleGlyphSize = 10 + 2 * (maxpData.maxContours as u32) + 2
+        + (maxpData.maxSizeOfInstructions as u32)
+        + (maxpData.maxPoints as u32 * 5);
+    let maxCompoundGlyphSize = 26 + (maxpData.maxSizeOfInstructions as u32);
+    let maxGlyphSize = maxSimpleGlyphSize.max(maxCompoundGlyphSize);
+    let maxTableSize = (maxpData.numGlyphs as u32) * maxGlyphSize;
+    let is_short_loca = headData.indexToLocFormat == 0;
+
+    let mut s_out = Stream2::new2(0, maxTableSize as _);
+    let mut s_loca_out = Stream2::new2(0, 0);
+
+    if is_short_loca {
+        s_loca_out.buf.reserve(2 * (maxpData.numGlyphs + 1) as usize);
+        s_loca_out.be_write_u16(0)
+            .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
     } else {
-        reserve(
-            &raw mut sLocaOut,
-            (4 as ::core::ffi::c_int
-                * ((*maxpData).numGlyphs as ::core::ffi::c_int
-                    + 1 as ::core::ffi::c_int)) as ::core::ffi::c_uint,
-        );
-        BEWriteU32(&raw mut sLocaOut, 0 as uint32_t);
+        s_loca_out.buf.reserve(4 * (maxpData.numGlyphs + 1) as usize);
+        s_loca_out.be_write_u32(0)
+            .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
     }
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < (*maxpData).numGlyphs as ::core::ffi::c_uint {
-        let mut result: EOTError = decodeGlyph(streams, &raw mut sOut);
-        if result != EOT_SUCCESS {
-            return result;
+
+    for _ in 0..maxpData.numGlyphs {
+        // decode a glyph outline
+        decodeGlyph(streams, &mut s_out)?;
+
+        // do padding
+        if s_out.pos % 2 != 0 {
+            s_out.be_write_u8(0)?;
         }
-        if sOut.pos.wrapping_rem(2 as ::core::ffi::c_uint) != 0 {
-            BEWriteU8(&raw mut sOut, 0 as uint8_t);
-        }
-        if shortLoca {
-            BEWriteU16(
-                &raw mut sLocaOut,
-                sOut.pos.wrapping_div(2 as ::core::ffi::c_uint) as uint16_t,
-            );
+
+        // add an entry to the location table
+        if is_short_loca {
+            s_loca_out.be_write_u16((s_out.pos / 2) as _)
+                .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
         } else {
-            BEWriteU32(&raw mut sLocaOut, sOut.pos as uint32_t);
+            s_loca_out.be_write_u32(s_out.pos as _)
+                .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
         }
-        i = i.wrapping_add(1);
     }
-    let glyfOut = std::slice::from_raw_parts(sOut.buf, sOut.size as _);
-    (*glyf).buf = glyfOut.into();
-    let locaOut = std::slice::from_raw_parts(sLocaOut.buf, sLocaOut.size as _);
-    (*loca).buf = locaOut.into();
+
+    tables[glyf].buf = s_out.buf.into_boxed_slice();
+    tables[loca].buf = s_loca_out.buf.into_boxed_slice();
+
     if notEnoughGlyphs {
-        return EOT_WARN_NOT_ENOUGH_GLYPHS;
+        return Err(Error::WARN_NOT_ENOUGH_GLYPHS);
     }
+
     if overranAllocatedSpace {
-        return EOT_WARN_NOT_ENOUGH_SPACE_RESERVED;
+        return Err(Error::WARN_NOT_ENOUGH_SPACE_RESERVED);
     }
-    return EOT_SUCCESS;
+
+    Ok(())
 }
 
-pub unsafe fn parseCTF(streams: &mut [Stream2]) -> Result<SFNTContainer, Error> {
+pub fn parseCTF(streams: &mut [Stream2]) -> Result<SFNTContainer, Error> {
     let offsetTable = parseOffsetTable(&mut streams[0])
         .map_err(|_| Error::CORRUPT_FILE)?;
     let mut out = SFNTContainer::new(offsetTable.numTables as usize);
@@ -1653,71 +738,25 @@ pub unsafe fn parseCTF(streams: &mut [Stream2]) -> Result<SFNTContainer, Error> 
         }
     }
 
-    let legacy_streams = &mut [
-        streams[0].to_legacy(),
-        streams[1].to_legacy(),
-        streams[2].to_legacy(),
-    ];
-    let streams = &mut [
-        &raw mut legacy_streams[0],
-        &raw mut legacy_streams[1],
-        &raw mut legacy_streams[2],
-    ];
-
-
-    if glyf.is_some() && loca.is_none() {
-        out.add_table(b"loca");
-        loca = Some(out.tables.len() - 1);
-    }
+    let glyf_loca =
+        if glyf.is_some() && loca.is_none() { // TODO: fix with a let chain
+            out.add_table(b"loca");
+            Some((glyf.unwrap(), out.tables.len() - 1))
+        } else if glyf.is_some() && loca.is_some() {
+            Some((glyf.unwrap(), loca.unwrap()))
+        } else {
+            None
+        };
 
     let Some(maxp) = maxp else { return Err(Error::NO_MAXP_TABLE) };
     let Some(head) = head else { return Err(Error::NO_HEAD_TABLE) };
     let Some(____) = hmtx else { return Err(Error::NO_HMTX_TABLE) };
 
-    let mut headData: TTFheadData = TTFheadData { indexToLocFormat: 0 };
-    let result = TTFParseHead(&raw mut out.tables[head], &raw mut headData);
-    if result != EOT_SUCCESS {
-        panic!("err");
-        // return result;
-    }
-    let mut maxpData: TTFmaxpData = TTFmaxpData {
-        numGlyphs: 0,
-        maxPoints: 0,
-        maxContours: 0,
-        maxComponentPoints: 0,
-        maxComponentContours: 0,
-        maxZones: 0,
-        maxTwilightPoints: 0,
-        maxStorage: 0,
-        maxFunctionDefs: 0,
-        maxInstructionDefs: 0,
-        maxStackElements: 0,
-        maxSizeOfInstructions: 0,
-        maxComponentElements: 0,
-        maxComponentDepth: 0,
-    };
-    let result = TTFParseMaxp(&raw mut out.tables[maxp], &raw mut maxpData);
-    if result != EOT_SUCCESS {
-        panic!("err");
-        //return result;
-    }
-    if let Some(glyf) = glyf {
-        // cheat for now
-        let glyf = &mut out.tables[glyf] as *mut _;
-        let loca = match loca {
-            Some(r) => &mut out.tables[r] as *mut _,
-            None => std::ptr::null_mut(),
-        };
-        let result = populateGlyfAndLoca(
-            glyf, loca,
-            &raw mut headData,
-            &raw mut maxpData,
-            streams,
-        );
-        if result != EOT_SUCCESS {
-            panic!("err");
-            //return result;
-        }
+    let mut headData = TTFParseHead(&mut out.tables[head])?;
+    let mut maxpData = TTFParseMaxp(&mut out.tables[maxp])?;
+
+    if let Some((glyf, loca)) = glyf_loca {
+        populateGlyfAndLoca(&mut out.tables, glyf, loca, &mut headData, &mut maxpData, streams)?;
     }
 
     Ok(out)

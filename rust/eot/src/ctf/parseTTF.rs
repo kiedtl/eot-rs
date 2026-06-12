@@ -1,191 +1,65 @@
+use std::io::Cursor;
+use byteorder::{BE, ReadBytesExt};
+use crate::core::*;
 use crate::ctf::SFNTContainer::SFNTTable;
-use crate::util::stream::*;
-extern "C" {
-    fn memset(
-        __s: *mut ::core::ffi::c_void,
-        __c: ::core::ffi::c_int,
-        __n: size_t,
-    ) -> *mut ::core::ffi::c_void;
-}
-pub type __uint8_t = u8;
-pub type __int16_t = i16;
-pub type __uint16_t = u16;
-pub type __uint32_t = u32;
-pub type int16_t = __int16_t;
-pub type uint8_t = __uint8_t;
-pub type uint16_t = __uint16_t;
-pub type uint32_t = __uint32_t;
-pub type size_t = usize;
-pub type EOTError = ::core::ffi::c_uint;
-pub const EOT_WARN_NOT_ENOUGH_GLYPHS: EOTError = 1002;
-pub const EOT_WARN_BAD_VERSION: EOTError = 1001;
-pub const EOT_WARN_NOT_ENOUGH_SPACE_RESERVED: EOTError = 1000;
-pub const EOT_MALFORMED_HEAD_TABLE: EOTError = 19;
-pub const EOT_MTX_ERROR: EOTError = 18;
-pub const EOT_UNKNOWN_BUFFER_WRITE_ERROR: EOTError = 17;
-pub const EOT_CORRUPT_HOPCODE_DATA: EOTError = 16;
-pub const EOT_NO_HDMX_TABLE: EOTError = 15;
-pub const EOT_NO_HMTX_TABLE: EOTError = 14;
-pub const EOT_NO_HEAD_TABLE: EOTError = 13;
-pub const EOT_NO_MAXP_TABLE: EOTError = 12;
-pub const EOT_LOGIC_ERROR: EOTError = 11;
-pub const EOT_COMPRESSION_NOT_YET_IMPLEMENTED: EOTError = 10;
-pub const EOT_FWRITE_ERROR: EOTError = 9;
-pub const EOT_OTHER_STDLIB_ERROR: EOTError = 8;
-pub const EOT_CANT_ALLOCATE_MEMORY: EOTError = 7;
-pub const EOT_THIRD_STREAM_INCOMPLETE: EOTError = 6;
-pub const EOT_SECOND_STREAM_INCOMPLETE: EOTError = 5;
-pub const EOT_CORRUPT_FILE: EOTError = 4;
-pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
-pub const EOT_HEADER_TOO_BIG: EOTError = 2;
-pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
-pub const EOT_SUCCESS: EOTError = 0;
+
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub struct TTFheadData {
-    pub indexToLocFormat: int16_t,
+    pub indexToLocFormat: i16,
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
+
+#[derive(Copy, Clone, Default)]
 pub struct TTFmaxpData {
-    pub numGlyphs: uint16_t,
-    pub maxPoints: uint16_t,
-    pub maxContours: uint16_t,
-    pub maxComponentPoints: uint16_t,
-    pub maxComponentContours: uint16_t,
-    pub maxZones: uint16_t,
-    pub maxTwilightPoints: uint16_t,
-    pub maxStorage: uint16_t,
-    pub maxFunctionDefs: uint16_t,
-    pub maxInstructionDefs: uint16_t,
-    pub maxStackElements: uint16_t,
-    pub maxSizeOfInstructions: uint16_t,
-    pub maxComponentElements: uint16_t,
-    pub maxComponentDepth: uint16_t,
+    pub numGlyphs: u16,
+    pub maxPoints: u16,
+    pub maxContours: u16,
+    pub maxComponentPoints: u16,
+    pub maxComponentContours: u16,
+    pub maxZones: u16,
+    pub maxTwilightPoints: u16,
+    pub maxStorage: u16,
+    pub maxFunctionDefs: u16,
+    pub maxInstructionDefs: u16,
+    pub maxStackElements: u16,
+    pub maxSizeOfInstructions: u16,
+    pub maxComponentElements: u16,
+    pub maxComponentDepth: u16,
 }
 
-pub unsafe fn TTFParseHead(
-    mut tbl: *mut SFNTTable,
-    mut out: *mut TTFheadData,
-) -> EOTError {
-    if (*tbl).buf.len() < 52 {
-        return EOT_CORRUPT_FILE;
+pub fn TTFParseHead(tbl: &SFNTTable) -> Result<TTFheadData, Error> {
+    if tbl.buf.len() < 52 {
+        return Err(Error::CORRUPT_FILE);
     }
-    *out = TTFheadData {
-        indexToLocFormat: 0 as int16_t,
+    let indexToLocFormat = i16::from_be_bytes([tbl.buf[50], tbl.buf[51]]);
+    Ok(TTFheadData { indexToLocFormat })
+}
+
+pub fn TTFParseMaxp(tbl: &SFNTTable) -> Result<TTFmaxpData, Error> {
+    let mut out = TTFmaxpData::default();
+
+    let mut c = Cursor::new(&tbl.buf);
+    let version = c.read_u32::<BE>().map_err(|_| Error::CORRUPT_FILE)?;
+
+    let mut ru16 = || -> Result<u16, Error> {
+        c.read_u16::<BE>().map_err(|_| Error::CORRUPT_FILE)
     };
-    // Prime candidate for replacing with a Cursor
-    let slice: &mut [u8] = &mut (*tbl).buf;
-    let mut s: Stream = constructStream(slice.as_mut_ptr(), (*tbl).buf.len() as u32);
-    seekAbsolute(&raw mut s, 50 as ::core::ffi::c_uint);
-    BEReadS16(&raw mut s, &raw mut (*out).indexToLocFormat);
-    return EOT_SUCCESS;
-}
 
-pub unsafe fn TTFParseMaxp(
-    mut tbl: *mut SFNTTable,
-    mut out: *mut TTFmaxpData,
-) -> EOTError {
-    let slice: &mut [u8] = &mut (*tbl).buf;
-    let mut s: Stream = constructStream(slice.as_mut_ptr(), (*tbl).buf.len() as u32);
-    let mut sResult: StreamResult = EOT_STREAM_OK;
-    memset(
-        out as *mut ::core::ffi::c_void,
-        0 as ::core::ffi::c_int,
-        ::core::mem::size_of::<TTFmaxpData>() as size_t,
-    );
-    let mut version: uint32_t = 0;
-    sResult = BEReadU32(&raw mut s, &raw mut version);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
+    out.numGlyphs = ru16()?;
+    if version == 0x00010000 {
+        out.maxPoints = ru16()?;
+        out.maxContours = ru16()?;
+        out.maxComponentPoints = ru16()?;
+        out.maxComponentContours = ru16()?;
+        out.maxZones = ru16()?;
+        out.maxTwilightPoints = ru16()?;
+        out.maxStorage = ru16()?;
+        out.maxFunctionDefs = ru16()?;
+        out.maxInstructionDefs = ru16()?;
+        out.maxStackElements = ru16()?;
+        out.maxSizeOfInstructions = ru16()?;
+        out.maxComponentElements = ru16()?;
+        out.maxComponentDepth = ru16()?;
     }
-    sResult = BEReadU16(&raw mut s, &raw mut (*out).numGlyphs);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
-    }
-    if version == 0x10000 as uint32_t {
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxPoints);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxContours);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxComponentPoints);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxComponentContours);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxZones);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxTwilightPoints);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxStorage);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxFunctionDefs);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxInstructionDefs);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxStackElements);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxSizeOfInstructions);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxComponentElements);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-        sResult = BEReadU16(&raw mut s, &raw mut (*out).maxComponentDepth);
-        if sResult as ::core::ffi::c_uint
-            != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return EOT_CORRUPT_FILE;
-        }
-    }
-    return EOT_SUCCESS;
+
+    Ok(out)
 }
