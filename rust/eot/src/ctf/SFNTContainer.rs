@@ -1,36 +1,10 @@
 use std::io::{Read, Cursor};
 
+use crate::util::stream::*;
 use crate::core::Error;
 use crate::util::stream2::{Error as StreamError, Stream as Stream2};
 
 extern "C" {
-    fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
-    fn constructStream2(
-        buf: *mut uint8_t,
-        size: ::core::ffi::c_uint,
-        reserved: ::core::ffi::c_uint,
-    ) -> Stream;
-    fn seekAbsolute(s: *mut Stream, pos: ::core::ffi::c_uint) -> StreamResult;
-    fn seekRelativeThroughReserve(
-        s: *mut Stream,
-        offset: ::core::ffi::c_int,
-    ) -> StreamResult;
-    fn reserve(s: *mut Stream, toReserve: ::core::ffi::c_uint) -> StreamResult;
-    fn BEWriteU8(s: *mut Stream, in_0: uint8_t) -> StreamResult;
-    fn BEWriteU16(s: *mut Stream, in_0: uint16_t) -> StreamResult;
-    fn BEWriteU32(s: *mut Stream, in_0: uint32_t) -> StreamResult;
-    fn BEReadRestAsU32(s: *mut Stream, out: *mut uint32_t) -> StreamResult;
-    fn streamCopy(
-        sIn: *mut Stream,
-        sOut: *mut Stream,
-        length: ::core::ffi::c_uint,
-    ) -> StreamResult;
-    fn BEcheckSum32(
-        s: *mut Stream,
-        out: *mut uint32_t,
-        beginPos: ::core::ffi::c_uint,
-        endPos: ::core::ffi::c_uint,
-    ) -> StreamResult;
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
     fn realloc(
         __ptr: *mut ::core::ffi::c_void,
@@ -74,94 +48,51 @@ pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
 pub const EOT_HEADER_TOO_BIG: EOTError = 2;
 pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
-pub type StreamResult = ::core::ffi::c_uint;
-pub const EOT_OFF_BYTE_BOUNDARY: StreamResult = 7;
-pub const EOT_VALUE_OUT_OF_BOUNDS: StreamResult = 6;
-pub const EOT_OUT_OF_RESERVED_SPACE: StreamResult = 5;
-pub const EOT_CANT_ALLOCATE_MEMORY_FOR_STREAM: StreamResult = 4;
-pub const EOT_SEEK_PAST_EOS: StreamResult = 3;
-pub const EOT_NEGATIVE_SEEK: StreamResult = 2;
-pub const EOT_NOT_ENOUGH_DATA: StreamResult = 1;
-pub const EOT_STREAM_OK: StreamResult = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct Stream {
-    pub buf: *mut uint8_t,
-    pub size: ::core::ffi::c_uint,
-    pub reserved: ::core::ffi::c_uint,
-    pub pos: ::core::ffi::c_uint,
-    pub bitPos: ::core::ffi::c_uint,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
+
+#[derive(Clone)]
 pub struct SFNTTable {
-    pub tag: [::core::ffi::c_char; 4],
-    pub buf: *mut uint8_t,
-    pub bufSize: ::core::ffi::c_uint,
-    pub offset: ::core::ffi::c_uint,
-    pub checksum: ::core::ffi::c_uint,
+    pub tag: [u8; 4],
+    pub buf: Box<[u8]>,
+    pub offset: usize,
+    pub checksum: u32,
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
+
+impl SFNTTable {
+    pub fn new(tag: &[u8; 4]) -> Self {
+        Self {
+            tag: *tag,
+            buf: Box::new([]),
+            offset: 0,
+            checksum: 0,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct SFNTContainer {
-    pub numTables: ::core::ffi::c_uint,
-    pub _numTablesReserved: ::core::ffi::c_uint,
-    pub tables: *mut SFNTTable,
+    pub tables: Vec<SFNTTable>,
 }
+
+impl SFNTContainer {
+    pub fn new(cap: usize) -> Self {
+        Self {
+            tables: Vec::with_capacity(cap)
+        }
+    }
+
+    pub fn add_table(&mut self, tag: &[u8; 4]) -> &mut SFNTTable {
+        self.tables.push(SFNTTable::new(tag));
+        let l = self.tables.len() - 1;
+        &mut self.tables[l]
+    }
+}
+
 pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
 pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
     ::core::ffi::c_void,
 >();
-#[no_mangle]
-pub unsafe extern "C" fn reserveTables(
-    mut ctr: *mut SFNTContainer,
-    mut num: ::core::ffi::c_uint,
-) -> EOTError {
-    if (*ctr)._numTablesReserved >= num {
-        return EOT_SUCCESS;
-    }
-    let mut allocated: *mut ::core::ffi::c_void = realloc(
-        (*ctr).tables as *mut ::core::ffi::c_void,
-        (::core::mem::size_of::<SFNTTable>() as size_t).wrapping_mul(num as size_t),
-    );
-    if allocated.is_null() {
-        return EOT_CANT_ALLOCATE_MEMORY;
-    }
-    (*ctr).tables = allocated as *mut SFNTTable;
-    (*ctr)._numTablesReserved = num;
-    return EOT_SUCCESS;
-}
-#[no_mangle]
-pub unsafe extern "C" fn constructContainer(
-    mut out: *mut *mut SFNTContainer,
-) -> EOTError {
-    *out = malloc(::core::mem::size_of::<SFNTContainer>() as size_t)
-        as *mut SFNTContainer;
-    if out.is_null() {
-        return EOT_CANT_ALLOCATE_MEMORY;
-    }
-    (**out).numTables = 0 as ::core::ffi::c_uint;
-    (**out)._numTablesReserved = 0 as ::core::ffi::c_uint;
-    (**out).tables = ::core::ptr::null_mut::<SFNTTable>();
-    return EOT_SUCCESS;
-}
-#[no_mangle]
-pub unsafe extern "C" fn _freeTable(mut tbl: *mut SFNTTable) {
-    free((*tbl).buf as *mut ::core::ffi::c_void);
-    (*tbl).buf = ::core::ptr::null_mut::<uint8_t>();
-}
-#[no_mangle]
-pub unsafe extern "C" fn freeContainer(mut ctr: *mut SFNTContainer) {
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < (*ctr).numTables {
-        _freeTable((*ctr).tables.offset(i as isize));
-        i = i.wrapping_add(1);
-    }
-    free((*ctr).tables as *mut ::core::ffi::c_void);
-    free(ctr as *mut ::core::ffi::c_void);
-}
 
-fn be_read_rest_as_u32(cursor: &mut Cursor<&mut [u8]>) -> Result<u32, StreamError> {
+fn be_read_rest_as_u32(cursor: &mut Cursor<&Box<[u8]>>) -> Result<u32, StreamError> {
     let pos = cursor.position() as usize;
     let len = cursor.get_ref().len();
 
@@ -183,16 +114,15 @@ fn be_read_rest_as_u32(cursor: &mut Cursor<&mut [u8]>) -> Result<u32, StreamErro
 }
 
 unsafe fn _writeTblCheckingSum(tbl: *mut SFNTTable, out: &mut Stream2) -> Result<(), Error> {
-    (*tbl).checksum = 0 as ::core::ffi::c_uint;
-    (*tbl).offset = (*out).pos as u32;
+    (*tbl).checksum = 0;
+    (*tbl).offset = (*out).pos;
 
-    let tableSlice = std::slice::from_raw_parts_mut((*tbl).buf, (*tbl).bufSize as usize);
-    let mut c = Cursor::new(tableSlice);
+    let mut c = Cursor::new(&(*tbl).buf);
 
     loop {
         match be_read_rest_as_u32(&mut c) {
             Ok(chunk) => {
-                (*tbl).checksum = (*tbl).checksum.wrapping_add(chunk as ::core::ffi::c_uint);
+                (*tbl).checksum = (*tbl).checksum.wrapping_add(chunk);
                 out.be_write_u32(chunk)?;
             },
             Err(StreamError::NOT_ENOUGH_DATA) => break,
@@ -204,16 +134,16 @@ unsafe fn _writeTblCheckingSum(tbl: *mut SFNTTable, out: &mut Stream2) -> Result
 }
 
 unsafe fn _writeTableDirectory(ctr: *mut SFNTContainer, out: &mut Stream2) -> Result<(), Error> {
-    for i in 0..(*ctr).numTables {
-        let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize) as *mut SFNTTable;
+    for i in 0..(*ctr).tables.len() {
+        let mut tbl: *mut SFNTTable = &mut (*ctr).tables[i] as *mut SFNTTable;
 
         for iTag in 0..4 {
             out.be_write_u8((*tbl).tag[iTag as usize] as u8)?;
         }
 
-        out.be_write_u32((*tbl).checksum as u32)?;
+        out.be_write_u32((*tbl).checksum)?;
         out.be_write_u32((*tbl).offset as u32)?;
-        out.be_write_u32((*tbl).bufSize as u32)?;
+        out.be_write_u32((*tbl).buf.len() as u32)?;
     }
     Ok(())
 }
@@ -239,10 +169,10 @@ pub unsafe extern "C" fn _maxpw(mut n: ::core::ffi::c_uint) -> ::core::ffi::c_ui
 
 unsafe fn _writeOffsetTable(ctr: *mut SFNTContainer, s: &mut Stream2) -> Result<(), Error> {
     let mut scalerType: uint32_t = 0x10000 as uint32_t;
-    let mut numTables: uint16_t = (*ctr).numTables as uint16_t;
-    let mut searchRange: uint16_t = _maxpw((*ctr).numTables)
+    let mut numTables: uint16_t = (*ctr).tables.len() as uint16_t;
+    let mut searchRange: uint16_t = _maxpw((*ctr).tables.len() as u32)
         .wrapping_mul(16 as ::core::ffi::c_uint) as uint16_t;
-    let mut entrySelector: uint16_t = _lgflr((*ctr).numTables) as uint16_t;
+    let mut entrySelector: uint16_t = _lgflr((*ctr).tables.len() as u32) as uint16_t;
     let mut rangeShift: uint16_t = (numTables as ::core::ffi::c_int
         * 16 as ::core::ffi::c_int - searchRange as ::core::ffi::c_int) as uint16_t;
 
@@ -256,26 +186,22 @@ unsafe fn _writeOffsetTable(ctr: *mut SFNTContainer, s: &mut Stream2) -> Result<
 }
 
 unsafe fn _getTableDirectorySize(ctr: *mut SFNTContainer) -> ::core::ffi::c_uint {
-    return (16 as ::core::ffi::c_uint).wrapping_mul((*ctr).numTables);
+    return (16 as ::core::ffi::c_uint).wrapping_mul((*ctr).tables.len() as u32);
 }
 
 unsafe fn _getRequiredSize(ctr: *mut SFNTContainer) -> ::core::ffi::c_uint {
-    let mut ret: ::core::ffi::c_uint = 12 as ::core::ffi::c_uint;
+    let mut ret: ::core::ffi::c_uint = 12;
     ret = ret.wrapping_add(_getTableDirectorySize(ctr));
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < (*ctr).numTables {
-        let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize) as *mut SFNTTable;
+    for tbl in &(*ctr).tables {
         ret = ret
             .wrapping_add(
-                (*tbl)
-                    .bufSize
-                    .wrapping_add(3 as ::core::ffi::c_uint)
-                    .wrapping_div(4 as ::core::ffi::c_uint)
-                    .wrapping_mul(4 as ::core::ffi::c_uint),
+                (tbl.buf.len() as core::ffi::c_uint)
+                    .wrapping_add(3)
+                    .wrapping_div(4)
+                    .wrapping_mul(4)
             );
-        i = i.wrapping_add(1);
     }
-    return ret;
+    ret
 }
 
 #[no_mangle]
@@ -290,27 +216,21 @@ pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
     let tableDirectoryOffset = s.pos;
     s.seek_relative_through_reserve(_getTableDirectorySize(ctr) as isize)?;
 
-    let mut head: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
+    let mut head = None;
     let mut chk: core::ffi::c_uint = 0;
-    for i in 0..(*ctr).numTables {
-        let mut tbl: *mut SFNTTable = (*ctr).tables.offset(i as isize)
-            as *mut SFNTTable;
-        if strncmp(
-            &raw mut (*tbl).tag as *mut ::core::ffi::c_char,
-            b"head\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            head = tbl;
+    for i in 0..(*ctr).tables.len() {
+        let tbl = &mut (*ctr).tables[i];
+        if &tbl.tag == b"head" {
+            head = Some(i);
         }
-        (*tbl).offset = s.pos as u32;
+        tbl.offset = s.pos;
         _writeTblCheckingSum(tbl, &mut s)?;
         chk = chk.wrapping_add((*tbl).checksum);
     }
-    if head.is_null() {
+    let Some(head) = head else {
         /* should have already caught the lack of a head table! */
         return Err(Error::LOGIC_ERROR);
-    }
+    };
 
     s.seek_absolute(tableDirectoryOffset as usize)?;
     _writeTableDirectory(ctr, &mut s)?;
@@ -322,67 +242,25 @@ pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
     // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
     // value.
     finalChecksum = (0xb1b0afba as ::core::ffi::c_uint).wrapping_sub(chk);
-    s.seek_absolute(((*head).offset + 8) as usize)?;
+    s.seek_absolute(((*ctr).tables[head].offset + 8) as usize)?;
     s.be_write_u32(finalChecksum)?;
 
     Ok(s.buf)
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn addTable(
-    mut ctr: *mut SFNTContainer,
-    mut tag: *const ::core::ffi::c_char,
-    mut newTableOut: *mut *mut SFNTTable,
-) -> EOTError {
-    if (*ctr).numTables == (*ctr)._numTablesReserved {
-        let mut err: EOTError = reserveTables(
-            ctr,
-            (*ctr).numTables.wrapping_mul(2 as ::core::ffi::c_uint),
-        );
-        if err as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return err;
-        }
-    }
-    let fresh0 = (*ctr).numTables;
-    (*ctr).numTables = (*ctr).numTables.wrapping_add(1);
-    let mut tbl: *mut SFNTTable = (*ctr).tables.offset(fresh0 as isize)
-        as *mut SFNTTable;
-    let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i < 4 as ::core::ffi::c_uint {
-        (*tbl).tag[i as usize] = *tag.offset(i as isize);
-        i = i.wrapping_add(1);
-    }
-    (*tbl).buf = ::core::ptr::null_mut::<uint8_t>();
-    (*tbl).bufSize = 0 as ::core::ffi::c_uint;
-    (*tbl).offset = 0 as ::core::ffi::c_uint;
-    *newTableOut = tbl;
-    return EOT_SUCCESS;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn loadTableFromStream(
-    mut tbl: *mut SFNTTable,
+pub unsafe fn loadTableFromStream(
+    tbl: &mut SFNTTable,
     mut s: *mut Stream,
-) -> EOTError {
-    let mut sResult: StreamResult = seekAbsolute(s, (*tbl).offset);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
+) -> Result<(), Error> {
+    let mut sResult: StreamResult = seekAbsolute(s, (*tbl).offset as _);
+    if sResult != EOT_STREAM_OK {
+        return Err(Error::CORRUPT_FILE);
     }
-    (*tbl).buf = malloc((*tbl).bufSize as size_t) as *mut uint8_t;
-    let mut sOut: Stream = constructStream2(
-        (*tbl).buf,
-        0 as ::core::ffi::c_uint,
-        (*tbl).bufSize,
-    );
-    sResult = streamCopy(s, &raw mut sOut, (*tbl).bufSize);
-    if sResult as ::core::ffi::c_uint
-        != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return EOT_CORRUPT_FILE;
+    let slice = std::slice::from_raw_parts((*s).buf, (*s).size as _);
+    let end = ((*s).pos as usize) + tbl.buf.len();
+    if end > slice.len() {
+        return Err(Error::CORRUPT_FILE);
     }
-    return EOT_SUCCESS;
+    tbl.buf[..].copy_from_slice(&slice[(*s).pos as _..end]);
+    Ok(())
 }

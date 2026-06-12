@@ -1,5 +1,7 @@
 use crate::core::Error;
-use crate::ctf::SFNTContainer::{SFNTContainer, dumpContainer};
+use crate::util::stream::*;
+use crate::ctf::SFNTContainer::dumpContainer;
+use crate::ctf::parseCTF::parseCTF;
 
 #[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
 #[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
@@ -7,9 +9,6 @@ use crate::ctf::SFNTContainer::{SFNTContainer, dumpContainer};
 extern "C" {
     fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
     fn free(__ptr: *mut ::core::ffi::c_void);
-    fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
-    fn freeContainer(ctr: *mut SFNTContainer);
-    fn parseCTF(streams: *mut *mut Stream, out: *mut *mut SFNTContainer) -> EOTError;
     fn unpackMtx(
         buf: *mut Stream,
         size: ::core::ffi::c_uint,
@@ -47,15 +46,6 @@ pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
 pub const EOT_HEADER_TOO_BIG: EOTError = 2;
 pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct Stream {
-    pub buf: *mut uint8_t,
-    pub size: ::core::ffi::c_uint,
-    pub reserved: ::core::ffi::c_uint,
-    pub pos: ::core::ffi::c_uint,
-    pub bitPos: ::core::ffi::c_uint,
-}
 pub const NULL: *mut ::core::ffi::c_void = ::core::ptr::null_mut::<
     ::core::ffi::c_void,
 >();
@@ -85,8 +75,6 @@ pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) ->
         ::core::ptr::null_mut::<uint8_t>(),
         ::core::ptr::null_mut::<uint8_t>(),
     ];
-
-    let mut ctr: *mut SFNTContainer = ::core::ptr::null_mut::<SFNTContainer>();
 
     if compressed {
         let mut sizes: [::core::ffi::c_uint; 3] = [0; 3];
@@ -119,22 +107,14 @@ pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) ->
             (&raw mut streams as *mut Stream)
                 .offset(2 as ::core::ffi::c_int as isize),
         ];
-        result = parseCTF(&raw mut streamPtrs as *mut *mut Stream, &raw mut ctr);
-        if result != EOT_SUCCESS {
-            panic!("error");
-        }
-
-        finalOutBuffer = dumpContainer(ctr)?;
+        let mut ctr = parseCTF(&raw mut streamPtrs as *mut *mut Stream)?;
+        finalOutBuffer = dumpContainer(&raw mut ctr)?;
     } else {
         finalOutBuffer = buf;
     }
 
     for i in 0..3 {
         free(ctfs[i] as *mut ::core::ffi::c_void);
-    }
-
-    if !ctr.is_null() {
-        freeContainer(ctr);
     }
 
     Ok(finalOutBuffer)

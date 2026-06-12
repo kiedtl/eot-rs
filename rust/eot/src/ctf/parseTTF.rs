@@ -1,9 +1,6 @@
+use crate::ctf::SFNTContainer::SFNTTable;
+use crate::util::stream::*;
 extern "C" {
-    fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
-    fn BEReadU16(s: *mut Stream, out: *mut uint16_t) -> StreamResult;
-    fn BEReadU32(s: *mut Stream, out: *mut uint32_t) -> StreamResult;
-    fn BEReadS16(s: *mut Stream, out: *mut int16_t) -> StreamResult;
-    fn seekAbsolute(s: *mut Stream, pos: ::core::ffi::c_uint) -> StreamResult;
     fn memset(
         __s: *mut ::core::ffi::c_void,
         __c: ::core::ffi::c_int,
@@ -43,33 +40,6 @@ pub const EOT_BOGUS_STRING_SIZE: EOTError = 3;
 pub const EOT_HEADER_TOO_BIG: EOTError = 2;
 pub const EOT_INSUFFICIENT_BYTES: EOTError = 1;
 pub const EOT_SUCCESS: EOTError = 0;
-pub type StreamResult = ::core::ffi::c_uint;
-pub const EOT_OFF_BYTE_BOUNDARY: StreamResult = 7;
-pub const EOT_VALUE_OUT_OF_BOUNDS: StreamResult = 6;
-pub const EOT_OUT_OF_RESERVED_SPACE: StreamResult = 5;
-pub const EOT_CANT_ALLOCATE_MEMORY_FOR_STREAM: StreamResult = 4;
-pub const EOT_SEEK_PAST_EOS: StreamResult = 3;
-pub const EOT_NEGATIVE_SEEK: StreamResult = 2;
-pub const EOT_NOT_ENOUGH_DATA: StreamResult = 1;
-pub const EOT_STREAM_OK: StreamResult = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct Stream {
-    pub buf: *mut uint8_t,
-    pub size: ::core::ffi::c_uint,
-    pub reserved: ::core::ffi::c_uint,
-    pub pos: ::core::ffi::c_uint,
-    pub bitPos: ::core::ffi::c_uint,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct SFNTTable {
-    pub tag: [::core::ffi::c_char; 4],
-    pub buf: *mut uint8_t,
-    pub bufSize: ::core::ffi::c_uint,
-    pub offset: ::core::ffi::c_uint,
-    pub checksum: ::core::ffi::c_uint,
-}
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct TTFheadData {
@@ -93,28 +63,31 @@ pub struct TTFmaxpData {
     pub maxComponentElements: uint16_t,
     pub maxComponentDepth: uint16_t,
 }
-#[no_mangle]
-pub unsafe extern "C" fn TTFParseHead(
+
+pub unsafe fn TTFParseHead(
     mut tbl: *mut SFNTTable,
     mut out: *mut TTFheadData,
 ) -> EOTError {
-    if (*tbl).bufSize < 52 as ::core::ffi::c_uint {
+    if (*tbl).buf.len() < 52 {
         return EOT_CORRUPT_FILE;
     }
     *out = TTFheadData {
         indexToLocFormat: 0 as int16_t,
     };
-    let mut s: Stream = constructStream((*tbl).buf, (*tbl).bufSize);
+    // Prime candidate for replacing with a Cursor
+    let slice: &mut [u8] = &mut (*tbl).buf;
+    let mut s: Stream = constructStream(slice.as_mut_ptr(), (*tbl).buf.len() as u32);
     seekAbsolute(&raw mut s, 50 as ::core::ffi::c_uint);
     BEReadS16(&raw mut s, &raw mut (*out).indexToLocFormat);
     return EOT_SUCCESS;
 }
-#[no_mangle]
-pub unsafe extern "C" fn TTFParseMaxp(
+
+pub unsafe fn TTFParseMaxp(
     mut tbl: *mut SFNTTable,
     mut out: *mut TTFmaxpData,
 ) -> EOTError {
-    let mut s: Stream = constructStream((*tbl).buf, (*tbl).bufSize);
+    let slice: &mut [u8] = &mut (*tbl).buf;
+    let mut s: Stream = constructStream(slice.as_mut_ptr(), (*tbl).buf.len() as u32);
     let mut sResult: StreamResult = EOT_STREAM_OK;
     memset(
         out as *mut ::core::ffi::c_void,

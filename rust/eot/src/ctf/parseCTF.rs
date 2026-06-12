@@ -1,3 +1,8 @@
+use crate::core::*;
+use crate::ctf::SFNTContainer::*;
+use crate::util::stream::*;
+use crate::ctf::parseTTF::*;
+
 use ::c2rust_bitfields;
 #[repr(C)] pub struct _IO_wide_data { _opaque: [u8; 0] }
 #[repr(C)] pub struct _IO_codecvt { _opaque: [u8; 0] }
@@ -13,48 +18,6 @@ extern "C" {
         __n: size_t,
     ) -> ::core::ffi::c_int;
     static tripletEncodings: [TripletEncoding; 0];
-    fn constructStream(buf: *mut uint8_t, size: ::core::ffi::c_uint) -> Stream;
-    fn BEReadU8(s: *mut Stream, out: *mut uint8_t) -> StreamResult;
-    fn BEReadU16(s: *mut Stream, out: *mut uint16_t) -> StreamResult;
-    fn BEReadU32(s: *mut Stream, out: *mut uint32_t) -> StreamResult;
-    fn BEReadS16(s: *mut Stream, out: *mut int16_t) -> StreamResult;
-    fn BEReadChar(s: *mut Stream, out: *mut ::core::ffi::c_char) -> StreamResult;
-    fn BEPeekU8(s: *mut Stream, out: *mut uint8_t) -> StreamResult;
-    fn seekRelative(s: *mut Stream, offset: ::core::ffi::c_int) -> StreamResult;
-    fn seekAbsolute(s: *mut Stream, pos: ::core::ffi::c_uint) -> StreamResult;
-    fn seekRelativeThroughReserve(
-        s: *mut Stream,
-        offset: ::core::ffi::c_int,
-    ) -> StreamResult;
-    fn seekAbsoluteThroughReserve(
-        s: *mut Stream,
-        pos: ::core::ffi::c_uint,
-    ) -> StreamResult;
-    fn reserve(s: *mut Stream, toReserve: ::core::ffi::c_uint) -> StreamResult;
-    fn BEWriteU8(s: *mut Stream, in_0: uint8_t) -> StreamResult;
-    fn BEWriteU16(s: *mut Stream, in_0: uint16_t) -> StreamResult;
-    fn BEWriteU32(s: *mut Stream, in_0: uint32_t) -> StreamResult;
-    fn BEWriteS16(s: *mut Stream, in_0: int16_t) -> StreamResult;
-    fn streamCopy(
-        sIn: *mut Stream,
-        sOut: *mut Stream,
-        length: ::core::ffi::c_uint,
-    ) -> StreamResult;
-    fn readNBits(
-        s: *mut Stream,
-        out: *mut uint32_t,
-        n: ::core::ffi::c_uint,
-    ) -> StreamResult;
-    fn constructContainer(out: *mut *mut SFNTContainer) -> EOTError;
-    fn reserveTables(ctr: *mut SFNTContainer, num: ::core::ffi::c_uint) -> EOTError;
-    fn addTable(
-        ctr: *mut SFNTContainer,
-        tag: *const ::core::ffi::c_char,
-        newTableOut: *mut *mut SFNTTable,
-    ) -> EOTError;
-    fn loadTableFromStream(tbl: *mut SFNTTable, s: *mut Stream) -> EOTError;
-    fn TTFParseHead(tbl: *mut SFNTTable, out: *mut TTFheadData) -> EOTError;
-    fn TTFParseMaxp(tbl: *mut SFNTTable, out: *mut TTFmaxpData) -> EOTError;
 }
 pub type __uint8_t = u8;
 pub type __int16_t = i16;
@@ -138,63 +101,6 @@ pub struct TripletEncoding {
     pub deltaY: ::core::ffi::c_uint,
     pub xSign: ::core::ffi::c_int,
     pub ySign: ::core::ffi::c_int,
-}
-pub type StreamResult = ::core::ffi::c_uint;
-pub const EOT_OFF_BYTE_BOUNDARY: StreamResult = 7;
-pub const EOT_VALUE_OUT_OF_BOUNDS: StreamResult = 6;
-pub const EOT_OUT_OF_RESERVED_SPACE: StreamResult = 5;
-pub const EOT_CANT_ALLOCATE_MEMORY_FOR_STREAM: StreamResult = 4;
-pub const EOT_SEEK_PAST_EOS: StreamResult = 3;
-pub const EOT_NEGATIVE_SEEK: StreamResult = 2;
-pub const EOT_NOT_ENOUGH_DATA: StreamResult = 1;
-pub const EOT_STREAM_OK: StreamResult = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct Stream {
-    pub buf: *mut uint8_t,
-    pub size: ::core::ffi::c_uint,
-    pub reserved: ::core::ffi::c_uint,
-    pub pos: ::core::ffi::c_uint,
-    pub bitPos: ::core::ffi::c_uint,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct SFNTTable {
-    pub tag: [::core::ffi::c_char; 4],
-    pub buf: *mut uint8_t,
-    pub bufSize: ::core::ffi::c_uint,
-    pub offset: ::core::ffi::c_uint,
-    pub checksum: ::core::ffi::c_uint,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct SFNTContainer {
-    pub numTables: ::core::ffi::c_uint,
-    pub _numTablesReserved: ::core::ffi::c_uint,
-    pub tables: *mut SFNTTable,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct TTFheadData {
-    pub indexToLocFormat: int16_t,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct TTFmaxpData {
-    pub numGlyphs: uint16_t,
-    pub maxPoints: uint16_t,
-    pub maxContours: uint16_t,
-    pub maxComponentPoints: uint16_t,
-    pub maxComponentContours: uint16_t,
-    pub maxZones: uint16_t,
-    pub maxTwilightPoints: uint16_t,
-    pub maxStorage: uint16_t,
-    pub maxFunctionDefs: uint16_t,
-    pub maxInstructionDefs: uint16_t,
-    pub maxStackElements: uint16_t,
-    pub maxSizeOfInstructions: uint16_t,
-    pub maxComponentElements: uint16_t,
-    pub maxComponentDepth: uint16_t,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -342,7 +248,7 @@ pub unsafe extern "C" fn unpackCVT(
     mut out: *mut SFNTTable,
     mut sIn: *mut Stream,
 ) -> EOTError {
-    let mut sResult: StreamResult = seekAbsolute(sIn, (*out).offset);
+    let mut sResult: StreamResult = seekAbsolute(sIn, (*out).offset as _);
     if sResult as ::core::ffi::c_uint
         != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
     {
@@ -386,8 +292,8 @@ pub unsafe extern "C" fn unpackCVT(
         }
         i = i.wrapping_add(1);
     }
-    (*out).buf = sOut.buf;
-    (*out).bufSize = sOut.size;
+    let slice = std::slice::from_raw_parts(sOut.buf, sOut.size as _);
+    (*out).buf = slice.into();
     return EOT_SUCCESS;
 }
 #[no_mangle]
@@ -1719,7 +1625,7 @@ pub unsafe extern "C" fn populateGlyfAndLoca(
     mut streams: *mut *mut Stream,
 ) -> EOTError {
     let mut sCTF: *mut Stream = *streams.offset(0 as ::core::ffi::c_int as isize);
-    let mut sResult: StreamResult = seekAbsolute(sCTF, (*glyf).offset);
+    let mut sResult: StreamResult = seekAbsolute(sCTF, (*glyf).offset as _);
     if sResult as ::core::ffi::c_uint
         != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
     {
@@ -1781,9 +1687,7 @@ pub unsafe extern "C" fn populateGlyfAndLoca(
     let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
     while i < (*maxpData).numGlyphs as ::core::ffi::c_uint {
         let mut result: EOTError = decodeGlyph(streams, &raw mut sOut);
-        if result as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
+        if result != EOT_SUCCESS {
             return result;
         }
         if sOut.pos.wrapping_rem(2 as ::core::ffi::c_uint) != 0 {
@@ -1799,10 +1703,10 @@ pub unsafe extern "C" fn populateGlyfAndLoca(
         }
         i = i.wrapping_add(1);
     }
-    (*glyf).buf = sOut.buf;
-    (*glyf).bufSize = sOut.size;
-    (*loca).buf = sLocaOut.buf;
-    (*loca).bufSize = sLocaOut.size;
+    let glyfOut = std::slice::from_raw_parts(sOut.buf, sOut.size as _);
+    (*glyf).buf = glyfOut.into();
+    let locaOut = std::slice::from_raw_parts(sLocaOut.buf, sLocaOut.size as _);
+    (*loca).buf = locaOut.into();
     if notEnoughGlyphs {
         return EOT_WARN_NOT_ENOUGH_GLYPHS;
     }
@@ -1811,13 +1715,8 @@ pub unsafe extern "C" fn populateGlyfAndLoca(
     }
     return EOT_SUCCESS;
 }
-#[no_mangle]
-pub unsafe extern "C" fn parseCTF(
-    mut streams: *mut *mut Stream,
-    mut out: *mut *mut SFNTContainer,
-) -> EOTError {
-    *out = ::core::ptr::null_mut::<SFNTContainer>();
-    let mut result: EOTError = constructContainer(out);
+
+pub unsafe fn parseCTF(mut streams: *mut *mut Stream) -> Result<SFNTContainer, Error> {
     let mut offsetTable: SFNTOffsetTable = SFNTOffsetTable {
         scalarType: 0,
         numTables: 0,
@@ -1832,14 +1731,10 @@ pub unsafe extern "C" fn parseCTF(
     if sResult as ::core::ffi::c_uint
         != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
     {
-        return EOT_CORRUPT_FILE;
+        return Err(Error::CORRUPT_FILE);
     }
-    result = reserveTables(*out, offsetTable.numTables as ::core::ffi::c_uint);
-    if result as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return result;
-    }
+    let mut out = SFNTContainer::new(offsetTable.numTables as usize);
+
     let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
     while i < offsetTable.numTables as ::core::ffi::c_uint {
         let mut tag: [::core::ffi::c_char; 4] = [0; 4];
@@ -1852,11 +1747,10 @@ pub unsafe extern "C" fn parseCTF(
             if sResult as ::core::ffi::c_uint
                 != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
             {
-                return EOT_CORRUPT_FILE;
+                return Err(Error::CORRUPT_FILE);
             }
             j = j.wrapping_add(1);
         }
-        let mut tbl: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
         if strncmp(
             &raw mut tag as *mut ::core::ffi::c_char,
             b"hdmx\0" as *const u8 as *const ::core::ffi::c_char,
@@ -1877,179 +1771,97 @@ pub unsafe extern "C" fn parseCTF(
                     as *const u8 as *const ::core::ffi::c_char,
             );
         } else {
-            result = addTable(
-                *out,
-                &raw mut tag as *mut ::core::ffi::c_char,
-                &raw mut tbl,
-            );
+            let tag = [tag[0] as _, tag[1] as _, tag[2] as _, tag[3] as _];
+            let tbl = out.add_table(&tag);
             sResult = seekRelative(
                 *streams.offset(0 as ::core::ffi::c_int as isize),
                 4 as ::core::ffi::c_int,
             );
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
+            if sResult != EOT_STREAM_OK {
+                return Err(Error::CORRUPT_FILE);
             }
+            let mut out = 0;
             sResult = BEReadU32(
                 *streams.offset(0 as ::core::ffi::c_int as isize),
-                &raw mut (*tbl).offset,
+                &raw mut out,
             );
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
+            tbl.offset = out as _;
+            if sResult != EOT_STREAM_OK {
+                return Err(Error::CORRUPT_FILE);
             }
+            let mut buf_size = 0;
             sResult = BEReadU32(
                 *streams.offset(0 as ::core::ffi::c_int as isize),
-                &raw mut (*tbl).bufSize,
+                &raw mut buf_size,
             );
-            if sResult as ::core::ffi::c_uint
-                != EOT_STREAM_OK as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return EOT_CORRUPT_FILE;
+            tbl.buf = vec![0u8; buf_size as _].into_boxed_slice();
+            if sResult != EOT_STREAM_OK {
+                return Err(Error::CORRUPT_FILE);
             }
         }
         i = i.wrapping_add(1);
     }
-    let mut glyf: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
-    let mut loca: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
-    let mut maxp: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
-    let mut head: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
-    let mut hmtx: *mut SFNTTable = ::core::ptr::null_mut::<SFNTTable>();
-    let mut i_0: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while i_0 < (**out).numTables {
-        let mut tbl_0: *mut SFNTTable = (**out).tables.offset(i_0 as isize)
-            as *mut SFNTTable;
-        let mut loadTable: bool = true_0 != 0;
-        if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"loca\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            loca = tbl_0;
-            loadTable = false_0 != 0;
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"glyf\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            glyf = tbl_0;
-            loadTable = false_0 != 0;
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"maxp\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            maxp = tbl_0;
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"head\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            head = tbl_0;
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"hmtx\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            hmtx = tbl_0;
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"hdmx\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-            || strncmp(
-                &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-                b"VDMX\0" as *const u8 as *const ::core::ffi::c_char,
-                4 as size_t,
-            ) == 0 as ::core::ffi::c_int
-        {
-            return EOT_LOGIC_ERROR
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"cvt \0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            result = unpackCVT(tbl_0, *streams.offset(0 as ::core::ffi::c_int as isize));
-            if result as ::core::ffi::c_uint
-                != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return result;
-            }
-            loadTable = false_0 != 0;
-        } else if strncmp(
-            &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-            b"VDMX\0" as *const u8 as *const ::core::ffi::c_char,
-            4 as size_t,
-        ) == 0 as ::core::ffi::c_int
-        {
-            loadTable = false_0 != 0;
+
+    let mut glyf: Option<usize> = None;
+    let mut loca: Option<usize> = None;
+    let mut maxp: Option<usize> = None;
+    let mut head: Option<usize> = None;
+    let mut hmtx: Option<usize> = None;
+
+    for (i, tbl_0) in out.tables.iter_mut().enumerate() {
+        let mut loadTable = true;
+        match &tbl_0.tag {
+            b"loca" => {
+                loca = Some(i);
+                loadTable = false;
+            },
+            b"glyf" => {
+                glyf = Some(i);
+                loadTable = false;
+            },
+            b"maxp" => maxp = Some(i),
+            b"head" => head = Some(i),
+            b"hmtx" => hmtx = Some(i),
+            b"hdmx" | b"VDMX" => unreachable!(),
+            b"cvt " => {
+                let result = unpackCVT(tbl_0, *streams.offset(0 as ::core::ffi::c_int as isize));
+                if result != EOT_SUCCESS {
+                    panic!("err");
+                    //return result;
+                }
+                loadTable = false;
+            },
+            _ => (),
         }
+
         if loadTable {
-            result = loadTableFromStream(
-                tbl_0,
-                *streams.offset(0 as ::core::ffi::c_int as isize),
-            );
-            if result as ::core::ffi::c_uint
-                != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-            {
-                return result;
-            }
-            if strncmp(
-                &raw mut (*tbl_0).tag as *mut ::core::ffi::c_char,
-                b"head\0" as *const u8 as *const ::core::ffi::c_char,
-                4 as size_t,
-            ) == 0 as ::core::ffi::c_int
-            {
-                if (*tbl_0).bufSize < 12 as ::core::ffi::c_uint {
-                    return EOT_MALFORMED_HEAD_TABLE;
+            loadTableFromStream(tbl_0, *streams.offset(0 as ::core::ffi::c_int as isize))?;
+            if &tbl_0.tag == b"head" {
+                /* kill global checksum; we will be recalcultaing it later. */
+                if tbl_0.buf.len() < 12 {
+                    return Err(Error::MALFORMED_HEAD_TABLE);
                 }
-                let mut i_1: ::core::ffi::c_uint = 8 as ::core::ffi::c_uint;
-                while i_1 < 12 as ::core::ffi::c_uint {
-                    *(*tbl_0).buf.offset(i_1 as isize) = 0 as uint8_t;
-                    i_1 = i_1.wrapping_add(1);
+                for i in 8..12 {
+                    tbl_0.buf[i] = 0;
                 }
             }
         }
-        i_0 = i_0.wrapping_add(1);
     }
-    if !glyf.is_null() && loca.is_null() {
-        result = addTable(
-            *out,
-            b"loca\0" as *const u8 as *const ::core::ffi::c_char,
-            &raw mut loca,
-        );
-        if result as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return result;
-        }
-        if loca.is_null() {
-            return EOT_LOGIC_ERROR;
-        }
+
+    if glyf.is_some() && loca.is_none() {
+        out.add_table(b"loca");
+        loca = Some(out.tables.len() - 1);
     }
-    if maxp.is_null() {
-        return EOT_NO_MAXP_TABLE;
-    }
-    if head.is_null() {
-        return EOT_NO_HEAD_TABLE;
-    }
-    if hmtx.is_null() {
-        return EOT_NO_HMTX_TABLE;
-    }
+
+    let Some(maxp) = maxp else { return Err(Error::NO_MAXP_TABLE) };
+    let Some(head) = head else { return Err(Error::NO_HEAD_TABLE) };
+    let Some(____) = hmtx else { return Err(Error::NO_HMTX_TABLE) };
+
     let mut headData: TTFheadData = TTFheadData { indexToLocFormat: 0 };
-    result = TTFParseHead(head, &raw mut headData);
-    if result as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return result;
+    let result = TTFParseHead(&raw mut out.tables[head], &raw mut headData);
+    if result != EOT_SUCCESS {
+        panic!("err");
+        // return result;
     }
     let mut maxpData: TTFmaxpData = TTFmaxpData {
         numGlyphs: 0,
@@ -2067,25 +1879,29 @@ pub unsafe extern "C" fn parseCTF(
         maxComponentElements: 0,
         maxComponentDepth: 0,
     };
-    result = TTFParseMaxp(maxp, &raw mut maxpData);
-    if result as ::core::ffi::c_uint
-        != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-    {
-        return result;
+    let result = TTFParseMaxp(&raw mut out.tables[maxp], &raw mut maxpData);
+    if result != EOT_SUCCESS {
+        panic!("err");
+        //return result;
     }
-    if !glyf.is_null() {
-        result = populateGlyfAndLoca(
-            glyf,
-            loca,
+    if let Some(glyf) = glyf {
+        // cheat for now
+        let glyf = &mut out.tables[glyf] as *mut _;
+        let loca = match loca {
+            Some(r) => &mut out.tables[r] as *mut _,
+            None => std::ptr::null_mut(),
+        };
+        let result = populateGlyfAndLoca(
+            glyf, loca,
             &raw mut headData,
             &raw mut maxpData,
             streams,
         );
-        if result as ::core::ffi::c_uint
-            != EOT_SUCCESS as ::core::ffi::c_int as ::core::ffi::c_uint
-        {
-            return result;
+        if result != EOT_SUCCESS {
+            panic!("err");
+            //return result;
         }
     }
-    return EOT_SUCCESS;
+
+    Ok(out)
 }
