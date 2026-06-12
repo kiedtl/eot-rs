@@ -71,16 +71,16 @@ fn be_read_rest_as_u32(cursor: &mut Cursor<&Box<[u8]>>) -> Result<u32, StreamErr
     })
 }
 
-unsafe fn _writeTblCheckingSum(tbl: *mut SFNTTable, out: &mut Stream2) -> Result<(), Error> {
-    (*tbl).checksum = 0;
-    (*tbl).offset = (*out).pos;
+fn _writeTblCheckingSum(tbl: &mut SFNTTable, out: &mut Stream2) -> Result<(), Error> {
+    tbl.checksum = 0;
+    tbl.offset = out.pos;
 
-    let mut c = Cursor::new(&(*tbl).buf);
+    let mut c = Cursor::new(&tbl.buf);
 
     loop {
         match be_read_rest_as_u32(&mut c) {
             Ok(chunk) => {
-                (*tbl).checksum = (*tbl).checksum.wrapping_add(chunk);
+                tbl.checksum = tbl.checksum.wrapping_add(chunk);
                 out.be_write_u32(chunk)?;
             },
             Err(StreamError::NOT_ENOUGH_DATA) => break,
@@ -91,48 +91,47 @@ unsafe fn _writeTblCheckingSum(tbl: *mut SFNTTable, out: &mut Stream2) -> Result
     Ok(())
 }
 
-unsafe fn _writeTableDirectory(ctr: *mut SFNTContainer, out: &mut Stream2) -> Result<(), Error> {
-    for i in 0..(*ctr).tables.len() {
-        let mut tbl: *mut SFNTTable = &mut (*ctr).tables[i] as *mut SFNTTable;
+fn _writeTableDirectory(ctr: &mut SFNTContainer, out: &mut Stream2) -> Result<(), Error> {
+    for i in 0..ctr.tables.len() {
+        let mut tbl = &mut ctr.tables[i];
 
         for iTag in 0..4 {
-            out.be_write_u8((*tbl).tag[iTag as usize] as u8)?;
+            out.be_write_u8(tbl.tag[iTag])?;
         }
 
-        out.be_write_u32((*tbl).checksum)?;
-        out.be_write_u32((*tbl).offset as u32)?;
-        out.be_write_u32((*tbl).buf.len() as u32)?;
+        out.be_write_u32(tbl.checksum)?;
+        out.be_write_u32(tbl.offset as u32)?;
+        out.be_write_u32(tbl.buf.len() as u32)?;
     }
     Ok(())
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn _lgflr(mut n: ::core::ffi::c_uint) -> ::core::ffi::c_uint {
-    let mut ret: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-    while n > 1 as ::core::ffi::c_uint {
-        n = n.wrapping_div(2 as ::core::ffi::c_uint);
-        ret = ret.wrapping_add(1);
+/* log_2(largest power of 2 <= n) */
+fn _lgflr(mut n: u32) -> u32 {
+    let mut ret = 0u32;
+    while n > 1 {
+        n /= 2;
+        ret += 1;
     }
-    return ret;
-}
-#[no_mangle]
-pub unsafe extern "C" fn _maxpw(mut n: ::core::ffi::c_uint) -> ::core::ffi::c_uint {
-    let mut ret: ::core::ffi::c_uint = 1 as ::core::ffi::c_uint;
-    while n > 1 as ::core::ffi::c_uint {
-        ret = ret.wrapping_mul(2 as ::core::ffi::c_uint);
-        n = n.wrapping_div(2 as ::core::ffi::c_uint);
-    }
-    return ret;
+    ret
 }
 
-unsafe fn _writeOffsetTable(ctr: *mut SFNTContainer, s: &mut Stream2) -> Result<(), Error> {
+/* largest power of 2 <= n */
+fn _maxpw(mut n: u32) -> u32 {
+    let mut ret = 1u32;
+    while n > 1 {
+        ret *= 2;
+        n /= 2;
+    }
+    ret
+}
+
+fn _writeOffsetTable(ctr: &mut SFNTContainer, s: &mut Stream2) -> Result<(), Error> {
     let mut scalerType: u32 = 0x10000 as u32;
-    let mut numTables: u16 = (*ctr).tables.len() as u16;
-    let mut searchRange: u16 = _maxpw((*ctr).tables.len() as u32)
-        .wrapping_mul(16 as ::core::ffi::c_uint) as u16;
-    let mut entrySelector: u16 = _lgflr((*ctr).tables.len() as u32) as u16;
-    let mut rangeShift: u16 = (numTables as ::core::ffi::c_int
-        * 16 as ::core::ffi::c_int - searchRange as ::core::ffi::c_int) as u16;
+    let mut numTables: u16 = ctr.tables.len() as u16;
+    let mut searchRange: u16 = (_maxpw(ctr.tables.len() as u32) * 16) as u16;
+    let mut entrySelector: u16 = _lgflr(ctr.tables.len() as u32) as u16;
+    let mut rangeShift: u16 = (numTables as i32 * 16i32 - (searchRange as i32)) as u16;
 
     s.be_write_u32(scalerType)?;
     s.be_write_u16(numTables)?;
@@ -143,47 +142,35 @@ unsafe fn _writeOffsetTable(ctr: *mut SFNTContainer, s: &mut Stream2) -> Result<
     Ok(())
 }
 
-unsafe fn _getTableDirectorySize(ctr: *mut SFNTContainer) -> ::core::ffi::c_uint {
-    return (16 as ::core::ffi::c_uint).wrapping_mul((*ctr).tables.len() as u32);
+fn _getTableDirectorySize(ctr: &SFNTContainer) -> usize {
+    ctr.tables.len() * 16
 }
 
-unsafe fn _getRequiredSize(ctr: *mut SFNTContainer) -> ::core::ffi::c_uint {
-    let mut ret: ::core::ffi::c_uint = 12;
-    ret = ret.wrapping_add(_getTableDirectorySize(ctr));
-    for tbl in &(*ctr).tables {
-        ret = ret
-            .wrapping_add(
-                (tbl.buf.len() as core::ffi::c_uint)
-                    .wrapping_add(3)
-                    .wrapping_div(4)
-                    .wrapping_mul(4)
-            );
+fn _getRequiredSize(ctr: &SFNTContainer) -> usize {
+    let mut ret = 12 + _getTableDirectorySize(ctr);
+    for tbl in &ctr.tables {
+        ret += ((tbl.buf.len() + 3) / 4) * 4;
     }
     ret
 }
 
-#[no_mangle]
-pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
-    let mut beginningChk: ::core::ffi::c_uint = 0;
-    let mut finalChecksum: ::core::ffi::c_uint = 0;
-
-    let requiredSize = _getRequiredSize(ctr);
-    let mut s = Stream2::new(requiredSize as usize);
+pub fn dumpContainer(ctr: &mut SFNTContainer) -> Result<Vec<u8>, Error> {
+    let mut s = Stream2::new(_getRequiredSize(ctr));
     _writeOffsetTable(ctr, &mut s)?;
 
     let tableDirectoryOffset = s.pos;
     s.seek_relative_through_reserve(_getTableDirectorySize(ctr) as isize)?;
 
     let mut head = None;
-    let mut chk: core::ffi::c_uint = 0;
-    for i in 0..(*ctr).tables.len() {
+    let mut chk = 0u32;
+    for i in 0..ctr.tables.len() {
         let tbl = &mut (*ctr).tables[i];
         if &tbl.tag == b"head" {
             head = Some(i);
         }
         tbl.offset = s.pos;
         _writeTblCheckingSum(tbl, &mut s)?;
-        chk = chk.wrapping_add((*tbl).checksum);
+        chk = chk.wrapping_add(tbl.checksum);
     }
     let Some(head) = head else {
         /* should have already caught the lack of a head table! */
@@ -193,14 +180,14 @@ pub unsafe fn dumpContainer(ctr: *mut SFNTContainer) -> Result<Vec<u8>, Error> {
     s.seek_absolute(tableDirectoryOffset as usize)?;
     _writeTableDirectory(ctr, &mut s)?;
 
-    beginningChk = s.be_checksum32(0, s.pos)?;
-    chk = chk.wrapping_add(beginningChk);
+    let beginning_chk = s.be_checksum32(0, s.pos)?;
+    chk = chk.wrapping_add(beginning_chk);
 
     // now put in the global checksum. It's OK that this will make the head checksum incorrect!
     // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
     // value.
-    finalChecksum = (0xb1b0afba as ::core::ffi::c_uint).wrapping_sub(chk);
-    s.seek_absolute(((*ctr).tables[head].offset + 8) as usize)?;
+    let finalChecksum = 0xb1b0afbau32.wrapping_sub(chk);
+    s.seek_absolute((ctr.tables[head].offset + 8) as usize)?;
     s.be_write_u32(finalChecksum)?;
 
     Ok(s.buf)

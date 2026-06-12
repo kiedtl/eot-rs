@@ -72,7 +72,7 @@ pub unsafe fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) ->
                 .offset(2 as ::core::ffi::c_int as isize),
         ];
         let mut ctr = parseCTF(&raw mut streamPtrs as *mut *mut Stream)?;
-        finalOutBuffer = dumpContainer(&raw mut ctr)?;
+        finalOutBuffer = dumpContainer(&mut ctr)?;
     } else {
         finalOutBuffer = buf;
     }
