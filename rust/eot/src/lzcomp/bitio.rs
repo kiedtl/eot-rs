@@ -1,3 +1,5 @@
+use crate::lzcomp::mtxmem::*;
+
 extern "C" {
     fn __assert_fail(
         __assertion: *const ::core::ffi::c_char,
@@ -6,16 +8,6 @@ extern "C" {
         __function: *const ::core::ffi::c_char,
     ) -> !;
     fn longjmp(__env: *mut __jmp_buf_tag, __val: ::core::ffi::c_int) -> !;
-    fn MTX_mem_malloc(
-        t: *mut MTX_MemHandler,
-        size: ::core::ffi::c_ulong,
-    ) -> *mut ::core::ffi::c_void;
-    fn MTX_mem_realloc(
-        t: *mut MTX_MemHandler,
-        p: *mut ::core::ffi::c_void,
-        size: ::core::ffi::c_ulong,
-    ) -> *mut ::core::ffi::c_void;
-    fn MTX_mem_free(t: *mut MTX_MemHandler, deadObject: *mut ::core::ffi::c_void);
 }
 pub type size_t = usize;
 pub type __jmp_buf = [::core::ffi::c_long; 8];
@@ -37,25 +29,6 @@ pub type jmp_buf = [__jmp_buf_tag; 1];
 pub struct mem_struct {
     pub pointermem: *mut ::core::ffi::c_void,
     pub pointersize: ::core::ffi::c_long,
-}
-pub type MTX_MALLOCPTR = Option<
-    unsafe extern "C" fn(size_t) -> *mut ::core::ffi::c_void,
->;
-pub type MTX_REALLOCPTR = Option<
-    unsafe extern "C" fn(*mut ::core::ffi::c_void, size_t) -> *mut ::core::ffi::c_void,
->;
-pub type MTX_FREEPTR = Option<unsafe extern "C" fn(*mut ::core::ffi::c_void) -> ()>;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct MTX_MemHandler {
-    pub mem_pointers: *mut mem_struct,
-    pub mem_maxPointers: ::core::ffi::c_long,
-    pub mem_numPointers: ::core::ffi::c_long,
-    pub mem_numNewCalls: ::core::ffi::c_long,
-    pub malloc: MTX_MALLOCPTR,
-    pub realloc: MTX_REALLOCPTR,
-    pub free: MTX_FREEPTR,
-    pub env: jmp_buf,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]

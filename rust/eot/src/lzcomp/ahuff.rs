@@ -1,3 +1,6 @@
+use crate::lzcomp::bitio::*;
+use crate::lzcomp::mtxmem::*;
+
 extern "C" {
     fn __assert_fail(
         __assertion: *const ::core::ffi::c_char,
@@ -5,13 +8,6 @@ extern "C" {
         __line: ::core::ffi::c_uint,
         __function: *const ::core::ffi::c_char,
     ) -> !;
-    fn MTX_mem_malloc(
-        t: *mut MTX_MemHandler,
-        size: ::core::ffi::c_ulong,
-    ) -> *mut ::core::ffi::c_void;
-    fn MTX_mem_free(t: *mut MTX_MemHandler, deadObject: *mut ::core::ffi::c_void);
-    fn MTX_BITIO_input_bit(t: *mut BITIO) -> ::core::ffi::c_short;
-    fn MTX_BITIO_output_bit(t: *mut BITIO, bit: ::core::ffi::c_ulong);
 }
 pub type size_t = usize;
 pub type __jmp_buf = [::core::ffi::c_long; 8];
@@ -33,40 +29,6 @@ pub type jmp_buf = [__jmp_buf_tag; 1];
 pub struct mem_struct {
     pub pointermem: *mut ::core::ffi::c_void,
     pub pointersize: ::core::ffi::c_long,
-}
-pub type MTX_MALLOCPTR = Option<
-    unsafe extern "C" fn(size_t) -> *mut ::core::ffi::c_void,
->;
-pub type MTX_REALLOCPTR = Option<
-    unsafe extern "C" fn(*mut ::core::ffi::c_void, size_t) -> *mut ::core::ffi::c_void,
->;
-pub type MTX_FREEPTR = Option<unsafe extern "C" fn(*mut ::core::ffi::c_void) -> ()>;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct MTX_MemHandler {
-    pub mem_pointers: *mut mem_struct,
-    pub mem_maxPointers: ::core::ffi::c_long,
-    pub mem_numPointers: ::core::ffi::c_long,
-    pub mem_numNewCalls: ::core::ffi::c_long,
-    pub malloc: MTX_MALLOCPTR,
-    pub realloc: MTX_REALLOCPTR,
-    pub free: MTX_FREEPTR,
-    pub env: jmp_buf,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct BITIO {
-    pub mem_bytes: *mut ::core::ffi::c_uchar,
-    pub mem_index: ::core::ffi::c_long,
-    pub mem_size: ::core::ffi::c_long,
-    pub input_bit_count: ::core::ffi::c_ushort,
-    pub input_bit_buffer: ::core::ffi::c_ushort,
-    pub bytes_in: ::core::ffi::c_long,
-    pub output_bit_count: ::core::ffi::c_ushort,
-    pub output_bit_buffer: ::core::ffi::c_ushort,
-    pub bytes_out: ::core::ffi::c_long,
-    pub ReadOrWrite: ::core::ffi::c_char,
-    pub mem: *mut MTX_MemHandler,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
