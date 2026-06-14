@@ -113,10 +113,10 @@ pub struct LZCOMP {
     pub DUP6: ::core::ffi::c_long,
     pub NUM_SYMS: ::core::ffi::c_long,
     pub maxCopyDistance: ::core::ffi::c_long,
-    pub dist_ecoder: *mut AHUFF,
-    pub len_ecoder: *mut AHUFF,
-    pub sym_ecoder: *mut AHUFF,
-    pub bitIn: *mut BITIO,
+    pub dist_ecoder: AHUFF,
+    pub len_ecoder: AHUFF,
+    pub sym_ecoder: AHUFF,
+    pub bio: *mut BITIO,
     pub mem: *mut MTX_MemHandler,
 }
 pub const true_0: ::core::ffi::c_int = 1 as ::core::ffi::c_int;
@@ -202,7 +202,7 @@ unsafe extern "C" fn DecodeLength(
             };
             bits = bits % ((1 as ::core::ffi::c_long) << len_width);
         } else {
-            bits = MTX_AHUFF_ReadSymbol((*t).len_ecoder) as ::core::ffi::c_long;
+            bits = t.len_ecoder.read_symbol(t.bio) as ::core::ffi::c_long;
         }
         done = (bits as ::core::ffi::c_ulong & mask == 0 as ::core::ffi::c_ulong)
             as ::core::ffi::c_int as ::core::ffi::c_long;
@@ -234,7 +234,7 @@ unsafe extern "C" fn DecodeDistance2(
     let dist_width: ::core::ffi::c_long = 3 as ::core::ffi::c_long;
     let mut i:  ::core::ffi::c_long =  distRanges;
     while i > 0 as ::core::ffi::c_long {
-        bits = MTX_AHUFF_ReadSymbol((*t).dist_ecoder) as ::core::ffi::c_long;
+        bits = t.dist_ecoder.read_symbol(t.bio) as ::core::ffi::c_long;
         value <<= dist_width;
         value |= bits;
         i -= 1;
@@ -372,7 +372,7 @@ unsafe fn Decode(t: &mut LZCOMP) -> Vec<u8> {
         ptr1 = t.ptr1.offset(preLoadSize as isize);
         pos = 0 as ::core::ffi::c_long;
         while pos < t.out_len {
-            symbol = MTX_AHUFF_ReadSymbol(t.sym_ecoder) as ::core::ffi::c_int;
+            symbol = t.sym_ecoder.read_symbol(t.bio) as ::core::ffi::c_int;
             if symbol < 256 as ::core::ffi::c_int {
                 value = symbol as ::core::ffi::c_uchar;
             } else if symbol as ::core::ffi::c_long == t.DUP2 {
@@ -428,7 +428,7 @@ unsafe fn Decode(t: &mut LZCOMP) -> Vec<u8> {
         };
         pos = 0 as ::core::ffi::c_long;
         while pos < t.out_len {
-            symbol = MTX_AHUFF_ReadSymbol(t.sym_ecoder) as ::core::ffi::c_int;
+            symbol = t.sym_ecoder.read_symbol(t.bio) as ::core::ffi::c_int;
             if symbol < 256 as ::core::ffi::c_int {
                 value = symbol as ::core::ffi::c_uchar;
             } else if symbol as ::core::ffi::c_long == t.DUP2 {
@@ -528,15 +528,15 @@ pub unsafe fn MTX_LZCOMP_UnPackMemory(
     );
     assert!(!mem.is_null());
 
-    let bitIn = MTX_BITIO_Create(mem, dataIn, dataInSize, 'r' as i8);
+    let bio = MTX_BITIO_Create(mem, dataIn, dataInSize, 'r' as i8);
     let NUM_SYMS = 0i64;
 
     let mut t = LZCOMP {
         ptr1: core::ptr::null_mut(),
         ptr1_IsSizeLimited: 0,
         rlComp: RUNLENGTHCOMP::new(),
-        usingRunLength: if version == 1 { false } else { MTX_BITIO_input_bit(bitIn) != 0 },
-        out_len: MTX_BITIO_ReadValue(bitIn, 24 as ::core::ffi::c_long) as ::core::ffi::c_long,
+        usingRunLength: if version == 1 { false } else { MTX_BITIO_input_bit(bio) != 0 },
+        out_len: MTX_BITIO_ReadValue(bio, 24 as ::core::ffi::c_long) as ::core::ffi::c_long,
         num_DistRanges: 0,
         dist_max: 0,
         DUP2: 0,
@@ -544,17 +544,15 @@ pub unsafe fn MTX_LZCOMP_UnPackMemory(
         DUP6: 0,
         NUM_SYMS,
         maxCopyDistance: 0x7fffffff,
-        dist_ecoder: MTX_AHUFF_Create(mem, bitIn, (1i64 << dist_width) as i16),
-        len_ecoder: MTX_AHUFF_Create(mem, bitIn, (1i64 << len_width) as i16),
-        sym_ecoder: core::ptr::null_mut(),
-        bitIn,
+        dist_ecoder: AHUFF::new((1i64 << dist_width) as i16),
+        len_ecoder: AHUFF::new((1i64 << len_width) as i16),
+        sym_ecoder: AHUFF::PLACEHOLDER,
+        bio,
         mem,
     };
 
     assert!(!dataIn.is_null());
-    assert!(!t.bitIn.is_null());
-    assert!(!t.dist_ecoder.is_null());
-    assert!(!t.len_ecoder.is_null());
+    assert!(!t.bio.is_null());
     let out_len = t.out_len;
     SetDistRange(&mut t, out_len);
 
@@ -572,18 +570,9 @@ pub unsafe fn MTX_LZCOMP_UnPackMemory(
             ),
     ) as *mut ::core::ffi::c_uchar;
 
-    t.sym_ecoder = MTX_AHUFF_Create(t.mem, t.bitIn, t.NUM_SYMS as i16);
-    assert!(!t.sym_ecoder.is_null());
+    t.sym_ecoder = AHUFF::new(t.NUM_SYMS as i16);
 
     let dataOut = Decode(&mut t); // do the work!
-    MTX_AHUFF_Destroy(t.dist_ecoder);
-    t.dist_ecoder = ::core::ptr::null_mut::<AHUFF>();
-    MTX_AHUFF_Destroy(t.len_ecoder);
-    t.len_ecoder = ::core::ptr::null_mut::<AHUFF>();
-    MTX_AHUFF_Destroy(t.sym_ecoder);
-    t.sym_ecoder = ::core::ptr::null_mut::<AHUFF>();
-    MTX_BITIO_Destroy(t.bitIn);
-    t.bitIn = ::core::ptr::null_mut::<BITIO>();
     assert!(t.usingRunLength || (dataOut.len() as i64) < maxOutSize);
     free(mem as *mut ::core::ffi::c_void);
     dataOut
