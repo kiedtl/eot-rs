@@ -107,12 +107,12 @@ impl AHUFF {
         return t;
     }
 
-    pub fn read_symbol(&mut self, bio: *mut BITIO) -> i16 {
+    pub fn read_symbol(&mut self, bio: &mut BITIO) -> i16 {
         let mut a = ROOT;
         let mut symbol = 0i16;
         loop {
             let n = &self.tree[a];
-            let bit = unsafe { MTX_BITIO_input_bit(bio) };
+            let bit = unsafe { bio.input_bit() };
             a = if bit != 0 { n.right } else { n.left };
             symbol = self.tree[a].code;
             if symbol >= 0 {
