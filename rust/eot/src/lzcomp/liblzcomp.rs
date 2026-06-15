@@ -3,7 +3,6 @@ use crate::lzcomp::lzcomp::*;
 use crate::util::stream2::Stream as Stream2;
 
 pub unsafe fn unpackMtx(buf: &mut Stream2, mut _size: u32) -> Result<[Vec<u8>; 3], Error> {
-
     let versionMagic = buf.be_read_u8()
         .map_err(|_| Error::MTX_ERROR)?;
     let _copyLimit = buf.be_read_u24()
@@ -32,17 +31,17 @@ pub unsafe fn unpackMtx(buf: &mut Stream2, mut _size: u32) -> Result<[Vec<u8>; 3
             &raw mut buf.buf[offsets[0] as usize] as *mut core::ffi::c_void,
             sizes[0] as _,
             versionMagic as u8,
-        ),
+        )?,
         MTX_LZCOMP_UnPackMemory(
             &raw mut buf.buf[offsets[1] as usize] as *mut core::ffi::c_void,
             sizes[1] as _,
             versionMagic as u8,
-        ),
+        )?,
         MTX_LZCOMP_UnPackMemory(
             &raw mut buf.buf[offsets[2] as usize] as *mut core::ffi::c_void,
             sizes[2] as _,
             versionMagic as u8,
-        ),
+        )?,
     ];
 
     Ok(bufs)

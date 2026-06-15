@@ -20,7 +20,6 @@ pub mod lzcomp {
     pub mod bitio;
     pub mod liblzcomp;
     pub mod lzcomp;
-    pub mod mtxmem;
 } // mod lzcomp
 pub mod triplet_encodings;
 pub mod util {

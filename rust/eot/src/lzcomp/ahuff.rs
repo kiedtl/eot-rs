@@ -1,3 +1,4 @@
+use crate::core::Error;
 use crate::lzcomp::bitio::*;
 
 #[derive(Copy, Clone)]
@@ -107,12 +108,12 @@ impl AHUFF {
         return t;
     }
 
-    pub fn read_symbol(&mut self, bio: &mut BITIO) -> i16 {
+    pub fn read_symbol(&mut self, bio: &mut BITIO) -> Result<i16, Error> {
         let mut a = ROOT;
         let mut symbol = 0i16;
         loop {
             let n = &self.tree[a];
-            let bit = unsafe { bio.input_bit() };
+            let bit = unsafe { bio.input_bit()? };
             a = if bit != 0 { n.right } else { n.left };
             symbol = self.tree[a].code;
             if symbol >= 0 {
@@ -120,7 +121,7 @@ impl AHUFF {
             }
         }
         self.update_weight(a);
-        symbol
+        Ok(symbol)
     }
 
     /* Swaps the nodes a and b */
@@ -181,7 +182,7 @@ impl AHUFF {
             let mut weightA = self.tree[a as usize].weight;
             let mut b = a - 1;
             /* This if statement prevents sibling rule violations */
-            //assert(tree[b].weight >= weightA);
+            assert!(self.tree[b].weight >= weightA);
             if self.tree[b as usize].weight == weightA {
                 loop {
                     b -= 1;
@@ -200,10 +201,12 @@ impl AHUFF {
             self.tree[a as usize].weight = weightA;
             a = self.tree[a as usize].up;
         }
-        //assert(a == ROOT);
+        assert_eq!(a, ROOT);
         self.tree[a as usize].weight += 1;
-        // assert(tree[a].weight ==
-        //          tree[tree[a].left].weight + tree[tree[a].right].weight);
+        assert_eq!(
+            self.tree[a].weight,
+            self.tree[self.tree[a].left].weight + self.tree[self.tree[a].right].weight
+        );
         /*check_tree(); slooow */
     }
 

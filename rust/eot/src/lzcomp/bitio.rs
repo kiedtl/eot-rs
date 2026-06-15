@@ -1,4 +1,4 @@
-pub const ERR_BITIO_end_of_file: i32 = 3304 as i32;
+use crate::core::Error;
 
 pub struct BITIO {
     mem_bytes: *mut ::core::ffi::c_uchar,
@@ -21,18 +21,18 @@ impl BITIO {
         }
     }
 
-    pub unsafe fn read_value(&mut self, numberOfBits: i64) -> ::core::ffi::c_ulong {
+    pub unsafe fn read_value(&mut self, numberOfBits: i64) -> Result<::core::ffi::c_ulong, Error> {
         let mut value = 0u64;
         for _ in 0..numberOfBits {
             value <<= 1;
-            if self.input_bit() != 0 {
+            if self.input_bit()? != 0 {
                 value |= 1;
             }
         }
-        value
+        Ok(value)
     }
 
-    pub unsafe fn input_bit(&mut self) -> i16 {
+    pub unsafe fn input_bit(&mut self) -> Result<i16, Error> {
         let input_bit_count = self.input_bit_count;
         self.input_bit_count = self.input_bit_count.wrapping_sub(1);
         if input_bit_count == 0 {
@@ -40,12 +40,12 @@ impl BITIO {
             self.mem_index = self.mem_index + 1;
             self.input_bit_buffer = *self.mem_bytes.offset(fresh2 as isize) as u16;
             if self.mem_index > self.mem_size {
-                panic!("ERR_BITIO_end_of_file");
+                return Err(Error::BITIO_END_OF_FILE);
             }
             self.bytes_in += 1;
             self.input_bit_count = 7;
         }
         self.input_bit_buffer = ((self.input_bit_buffer as i32) << 1) as u16;
-        (self.input_bit_buffer as i32 & 0x100) as i16
+        Ok((self.input_bit_buffer as i32 & 0x100) as i16)
     }
 }
