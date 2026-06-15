@@ -1,7 +1,7 @@
 [package]
 name = "eot-parse"
 description = "Parser for the Embeddable OpenType font format."
-license = "MPLv2.0"
+license = "MPL-2.0"
 authors = ["Kiëd Llaentenn <kiedtl@tilde.team>", "Brennan T. Vincent <brennanv@email.arizona.edu>"]
 repository = "https://github.com/kiedtl/eot-rs"
 documentation = "https://docs.rs/eot-parse"
