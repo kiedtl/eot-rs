@@ -1,5 +1,5 @@
 [workspace]
-members = ["eot", "eot_test"]
+members = ["eot_parse", "eot_test"]
 resolver = "3"
 
 [workspace.dependencies]

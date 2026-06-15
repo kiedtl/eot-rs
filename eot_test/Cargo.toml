@@ -2,9 +2,10 @@
 name = "eot_test"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
-eot = { path = "../eot" }
+eot-parse = { path = "../eot_parse" }
 
 [build-dependencies]
 cc = "1.0"

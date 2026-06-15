@@ -1,4 +1,4 @@
-# EOT-rs
+# `eot-parse`
 
 A parser for the Microsoft font "standard", Embeddable OpenType. This font
 format was proposed as a web font standard in 2007 before being discontinued in
@@ -22,13 +22,13 @@ Conversion to TTF:
 
 ```rust
 let data = std::fs::read(inp).unwrap();
-let (metadata, out) = eot::eot_to_ttf(&data).unwrap();
+let (metadata, out) = eot_parse::eot_to_ttf(&data).unwrap();
 ```
 
 Checking the EOT metadata:
 
 ```rust
-let metadata = eot::metadata::read_metadata(&data).unwrap();
+let metadata = eot_parse::metadata::read_metadata(&data).unwrap();
 ```
 
 ## Status

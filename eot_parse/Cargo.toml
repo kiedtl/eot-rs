@@ -1,13 +1,13 @@
 [package]
-name = "eot"
+name = "eot-parse"
 authors = [""]
 version = "0.1.0"
-publish = false
 edition = "2024"
 autobins = false
+publish = true
 
 [lib]
-name = "eot"
+name = "eot_parse"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]

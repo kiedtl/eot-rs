@@ -103,7 +103,7 @@ fn metadata_matches_legacy_api() {
         let c_ret = unsafe { c::EOTfillMetadata(data.as_ptr(), data.len() as u32, &mut c) };
         assert_eq!(c_ret, 0, "EOTfillMetadata: ret = {c_ret}");
 
-        let r = eot::metadata::read_metadata(&data).unwrap();
+        let r = eot_parse::metadata::read_metadata(&data).unwrap();
 
         assert_eq!(r.total_size, c.total_size, "total_size");
         assert_eq!(r.version, c.version, "version");
