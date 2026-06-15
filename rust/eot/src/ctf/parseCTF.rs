@@ -35,10 +35,10 @@ fn _ucvt_rdVal(s_in: &mut Stream, lastValue: &mut i16) -> Result<(), StreamError
 
     if code >= 248 {
         b2 = s_in.be_read_u8()?;
-        val = 238 * ((code as i32 - 247 as i32) as i16) + b2 as i16;
+        val = 238 * ((code as i32 - 247_i32) as i16) + b2 as i16;
     } else if code >= 239 {
         b2 = s_in.be_read_u8()?;
-        val = -1 * (238 * (code as i16 - 239) + b2 as i16) as i16;
+        val = -(238 * (code as i16 - 239) + b2 as i16);
     } else if code == 238 {
         val = s_in.be_read_i16()?;
     } else {
@@ -53,7 +53,7 @@ fn _ucvt_rdVal(s_in: &mut Stream, lastValue: &mut i16) -> Result<(), StreamError
     Ok(())
 }
 
-pub fn unpackCVT(mut out: &mut SFNTTable, s_in: &mut Stream) -> Result<(), Error> {
+pub fn unpackCVT(out: &mut SFNTTable, s_in: &mut Stream) -> Result<(), Error> {
     s_in.seek_absolute(out.offset as _).map_err(|_| Error::CORRUPT_FILE)?;
     let tableLength = s_in.be_read_u16().map_err(|_| Error::CORRUPT_FILE)?;
     let mut s_out = Stream::new2(0, tableLength as usize * 2);
@@ -142,7 +142,7 @@ fn _dpi_put2(
     data: &mut Vec<i16>,
     dataIndex: &mut u32,
 ) -> Result<(), StreamError> {
-    let newType = if value >= 0 && value < 256 { BYTE } else { SHORT };
+    let newType = if (0..256).contains(&value) { BYTE } else { SHORT };
     if newType != *lastRead || *typeLastReadCount == 255 {
         _dpi_dump2(out, lastRead, typeLastReadCount, data, dataIndex)?;
         *lastRead = newType;
@@ -230,7 +230,7 @@ fn _dsg_makeFlags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
     const FLG_X_SAME: u8 = 0x10;
     const FLG_Y_SAME: u8 = 0x20;
 
-    let mut ret: u8 = 0 as u8;
+    let mut ret: u8 = 0_u8;
     if onCurve {
         ret |= FLG_ON_CURVE;
     }
@@ -239,7 +239,7 @@ fn _dsg_makeFlags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
         ret |= FLG_X_SAME;
     } else if -256 < x && x < 0 {
         ret |= FLG_X_SHORT;
-    } else if 0 <= x && x < 256 {
+    } else if (0..256).contains(&x) {
         ret |= FLG_X_SHORT | FLG_X_SAME;
     }
 
@@ -247,7 +247,7 @@ fn _dsg_makeFlags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
         ret |= FLG_Y_SAME;
     } else if -256 < y && y < 0 {
         ret |= FLG_Y_SHORT;
-    } else if 0 <= y && y < 256 {
+    } else if (0..256).contains(&y) {
         ret |= FLG_Y_SHORT | FLG_Y_SAME;
     }
 
@@ -391,7 +391,7 @@ fn decodeSimpleGlyph(
             if -256 < x && x < 0 {
                 x *= -1;
             }
-            if 0 <= x && x < 256 {
+            if (0..256).contains(&x) {
                 out.be_write_u8(x as _)
                     .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
             } else {
@@ -407,7 +407,7 @@ fn decodeSimpleGlyph(
             if -256 < y && y < 0 {
                 y *= -1;
             }
-            if 0 <= y && y < 256 {
+            if (0..256).contains(&y) {
                 out.be_write_u8(y as _)
                     .map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
             } else {
@@ -524,7 +524,7 @@ fn decodeCompositeGlyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), 
     if flags & FLG_HAVE_INSTR != 0 {
         // https://learn.microsoft.com/en-us/typography/opentype/spec/glyf 
         // uint16 numInstr
-        let mut numInstrLocation = out.pos;
+        let numInstrLocation = out.pos;
         out.seek_relative_through_reserve(2)
             .map_err(|_| Error::CORRUPT_FILE)?;
 
@@ -544,7 +544,7 @@ fn decodeCompositeGlyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), 
                 .map_err(|_| Error::CORRUPT_FILE)?;
         }
 
-        let numInstr: u16 = ((out.pos as i32) - ((numInstrLocation as usize) + 2) as i32) as _;
+        let numInstr: u16 = ((out.pos as i32) - (numInstrLocation + 2) as i32) as _;
         if numInstr > 0 {
             let currPos = out.pos;
             out.seek_absolute_through_reserve(numInstrLocation as _)
@@ -560,7 +560,7 @@ fn decodeCompositeGlyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), 
 }
 
 fn decodeGlyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), Error> {
-    let mut in_0 = &mut streams[0];
+    let in_0 = &mut streams[0];
     let mut calculateBoundingBox: bool = false;
 
     let numContours = in_0.be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
@@ -596,11 +596,11 @@ fn populateGlyfAndLoca(
     maxpData: &mut TTFmaxpData,
     streams: &mut [Stream],
 ) -> Result<(), Error> {
-    let mut sctf = &mut streams[0];
+    let sctf = &mut streams[0];
     sctf.seek_absolute(tables[glyf].offset as _)?;
 
-    let mut overranAllocatedSpace: bool = false;
-    let mut notEnoughGlyphs: bool = false;
+    let overranAllocatedSpace: bool = false;
+    let notEnoughGlyphs: bool = false;
 
     streams[1].seek_absolute(0)?;
     streams[2].seek_absolute(0)?;
@@ -631,7 +631,7 @@ fn populateGlyfAndLoca(
         decodeGlyph(streams, &mut s_out)?;
 
         // do padding
-        if s_out.pos % 2 != 0 {
+        if !s_out.pos.is_multiple_of(2) {
             s_out.be_write_u8(0)?;
         }
 
@@ -739,8 +739,8 @@ pub fn parseCTF(streams: &mut [Stream]) -> Result<SFNTContainer, Error> {
     let Some(head) = head else { return Err(Error::NO_HEAD_TABLE) };
     let Some(____) = hmtx else { return Err(Error::NO_HMTX_TABLE) };
 
-    let mut headData = TTFParseHead(&mut out.tables[head])?;
-    let mut maxpData = TTFParseMaxp(&mut out.tables[maxp])?;
+    let mut headData = TTFParseHead(&out.tables[head])?;
+    let mut maxpData = TTFParseMaxp(&out.tables[maxp])?;
 
     if let Some((glyf, loca)) = glyf_loca {
         populateGlyfAndLoca(&mut out.tables, glyf, loca, &mut headData, &mut maxpData, streams)?;

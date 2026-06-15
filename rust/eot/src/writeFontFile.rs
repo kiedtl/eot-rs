@@ -6,7 +6,7 @@ use crate::ctf::parseCTF::parseCTF;
 const ENCRYPTION_KEY: u8 = 0x50;
 
 pub fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) -> Result<Vec<u8>, Error> {
-    let mut finalOutBuffer: Vec<u8>;
+    let finalOutBuffer: Vec<u8>;
 
     let mut buf = Vec::from(data);
     if encrypted {

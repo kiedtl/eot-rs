@@ -68,7 +68,7 @@ impl SFNTContainer {
     pub fn dumpToVec(&mut self) -> Result<Vec<u8>, Error> {
         fn _writeTableDirectory(ctr: &mut SFNTContainer, out: &mut Stream) -> Result<(), Error> {
             for i in 0..ctr.tables.len() {
-                let mut tbl = &mut ctr.tables[i];
+                let tbl = &mut ctr.tables[i];
 
                 for iTag in 0..4 {
                     out.be_write_u8(tbl.tag[iTag])?;
@@ -82,11 +82,11 @@ impl SFNTContainer {
         }
 
         fn _writeOffsetTable(ctr: &mut SFNTContainer, s: &mut Stream) -> Result<(), Error> {
-            let mut scalerType: u32 = 0x10000 as u32;
-            let mut numTables: u16 = ctr.tables.len() as u16;
-            let mut searchRange: u16 = (_maxpw(ctr.tables.len() as u32) * 16) as u16;
-            let mut entrySelector: u16 = _lgflr(ctr.tables.len() as u32) as u16;
-            let mut rangeShift: u16 = (numTables as i32 * 16i32 - (searchRange as i32)) as u16;
+            let scalerType: u32 = 0x10000_u32;
+            let numTables: u16 = ctr.tables.len() as u16;
+            let searchRange: u16 = (_maxpw(ctr.tables.len() as u32) * 16) as u16;
+            let entrySelector: u16 = _lgflr(ctr.tables.len() as u32) as u16;
+            let rangeShift: u16 = (numTables as i32 * 16i32 - (searchRange as i32)) as u16;
 
             s.be_write_u32(scalerType)?;
             s.be_write_u16(numTables)?;
@@ -106,7 +106,7 @@ impl SFNTContainer {
         let mut head = None;
         let mut chk = 0u32;
         for i in 0..self.tables.len() {
-            let tbl = &mut (*self).tables[i];
+            let tbl = &mut self.tables[i];
             if &tbl.tag == b"head" {
                 head = Some(i);
             }
@@ -119,7 +119,7 @@ impl SFNTContainer {
             return Err(Error::LOGIC_ERROR);
         };
 
-        s.seek_absolute(tableDirectoryOffset as usize)?;
+        s.seek_absolute(tableDirectoryOffset)?;
         _writeTableDirectory(self, &mut s)?;
 
         let beginning_chk = s.be_checksum32(0, s.pos)?;
@@ -129,7 +129,7 @@ impl SFNTContainer {
         // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
         // value.
         let finalChecksum = 0xb1b0afbau32.wrapping_sub(chk);
-        s.seek_absolute((self.tables[head].offset + 8) as usize)?;
+        s.seek_absolute(self.tables[head].offset + 8  )?;
         s.be_write_u32(finalChecksum)?;
 
         Ok(s.buf)
@@ -142,7 +142,7 @@ impl SFNTContainer {
     fn getRequiredSize(&self) -> usize {
         let mut ret = 12 + self.getTableDirectorySize();
         for tbl in &self.tables {
-            ret += ((tbl.buf.len() + 3) / 4) * 4;
+            ret += tbl.buf.len().div_ceil(4) * 4;
         }
         ret
     }

@@ -82,66 +82,66 @@ pub struct LZCOMP<'a> {
     pub bio: BITIO<'a>,
 }
 
-const len_width: i64 = 3;
-const preLoadSize: usize = 2 * 32 * 96 + 4 * 256;
-const max_2Byte_Dist: usize = 512;
+const LEN_WIDTH: i64 = 3;
+const PRE_LOAD_SIZE: usize = 2 * 32 * 96 + 4 * 256;
+const MAX_2_BYTE_DIST: usize = 512;
 
-fn SetDistRange(mut t: &mut LZCOMP, mut length: i64) {
+fn SetDistRange(t: &mut LZCOMP, length: i64) {
     let dist_min = 1i64;
     let dist_width = 3i64;
     t.num_DistRanges = 1i64;
-    t.dist_max = dist_min + (1i64 << dist_width * t.num_DistRanges) - 1;
+    t.dist_max = dist_min + (1i64 << (dist_width * t.num_DistRanges)) - 1;
     while t.dist_max < length {
         t.num_DistRanges += 1;
-        t.dist_max = dist_min + (1i64 << dist_width * t.num_DistRanges) - 1;
+        t.dist_max = dist_min + (1i64 << (dist_width * t.num_DistRanges)) - 1;
     }
-    t.DUP2 = 256 + (1i64 << len_width) * t.num_DistRanges;
+    t.DUP2 = 256 + (1i64 << LEN_WIDTH) * t.num_DistRanges;
     t.DUP4 = t.DUP2 + 1;
     t.DUP6 = t.DUP4 + 1;
     t.NUM_SYMS = t.DUP6 + 1;
 }
 
 fn DecodeLength(t: &mut LZCOMP, symbol: ::core::ffi::c_int, numDistRanges: &mut i64) -> Result<i64, Error> {
-    const len_min: i64 = 2;
-    const bit_Range: u64 = 3 - 1; /* == len_width - 1 */
+    const LEN_MIN: i64 = 2;
+    const BIT_RANGE: u64 = 3 - 1; /* == len_width - 1 */
 
     let mut done: i64 = 0;
     let mut bits: i64 = 0;
     let mut firstTime = symbol >= 0;
-    let mut value: i64 = 0 as i64;
-    let mask = 1u64 << bit_Range as u64;
+    let mut value: i64 = 0_i64;
+    let mask = 1u64 << BIT_RANGE;
 
     loop {
         if firstTime {
             bits = (symbol - 256) as i64;
             firstTime = false;
             assert!(bits >= 0);
-            *numDistRanges = bits / (1i64 << len_width) + 1;
+            *numDistRanges = bits / (1i64 << LEN_WIDTH) + 1;
             assert!(*numDistRanges >= 1 && *numDistRanges <= t.num_DistRanges);
-            bits %= 1i64 << len_width;
+            bits %= 1i64 << LEN_WIDTH;
         } else {
             bits = t.len_ecoder.read_symbol(&mut t.bio)? as i64;
         }
         done = (bits as ::core::ffi::c_ulong & mask == 0 as ::core::ffi::c_ulong)
             as ::core::ffi::c_int as i64;
         bits = (bits as ::core::ffi::c_ulong & !mask) as i64;
-        value <<= bit_Range;
+        value <<= BIT_RANGE;
         value |= bits;
-        if !(done == 0) {
+        if done != 0  {
             break;
         }
     }
-    value += len_min;
+    value += LEN_MIN;
     Ok(value)
 }
 
 fn DecodeDistance2(t: &mut LZCOMP, distRanges: i64) -> Result<i64, Error> {
     let mut bits: i64 = 0;
-    let mut value: i64 = 0 as i64;
-    let dist_min: i64 = 1 as i64;
-    let dist_width: i64 = 3 as i64;
+    let mut value: i64 = 0_i64;
+    let dist_min: i64 = 1_i64;
+    let dist_width: i64 = 3_i64;
     let mut i:  i64 =  distRanges;
-    while i > 0 as i64 {
+    while i > 0_i64 {
         bits = t.dist_ecoder.read_symbol(&mut t.bio)? as i64;
         value <<= dist_width;
         value |= bits;
@@ -168,7 +168,7 @@ fn InitializeModel(t: &mut LZCOMP) {
     }
 
     for j in 0u8..=255 {
-        if i >= preLoadSize {
+        if i >= PRE_LOAD_SIZE {
             break;
         }
         t.ptr1[i] = j;
@@ -181,7 +181,7 @@ fn InitializeModel(t: &mut LZCOMP) {
         i += 1;
     }
 
-    assert!(i as usize == preLoadSize);
+    assert!(i == PRE_LOAD_SIZE);
 }
 
 fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
@@ -191,7 +191,7 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
     let mut start = 0i64;
     let mut numDistRanges = 0;
     let mut value = 0u8;
-    let mut usingRunLength = t.usingRunLength;
+    let usingRunLength = t.usingRunLength;
     let mut pos = 0usize;
 
     let mut dataOut = Vec::new();
@@ -203,23 +203,23 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
             if symbol < 256 as ::core::ffi::c_int {
                 value = symbol as ::core::ffi::c_uchar;
             } else if symbol as i64 == t.DUP2 {
-                value = t.ptr1[(preLoadSize as i64 + (pos as i64 - 2)) as usize];
+                value = t.ptr1[(PRE_LOAD_SIZE as i64 + (pos as i64 - 2)) as usize];
             } else if symbol as i64 == t.DUP4 {
-                value = t.ptr1[(preLoadSize as i64 + (pos as i64 - 4)) as usize];
+                value = t.ptr1[(PRE_LOAD_SIZE as i64 + (pos as i64 - 4)) as usize];
             } else if symbol as i64 == t.DUP6 {
-                value = t.ptr1[(preLoadSize as i64 + (pos as i64 - 6)) as usize];
+                value = t.ptr1[(PRE_LOAD_SIZE as i64 + (pos as i64 - 6)) as usize];
             } else {
                 length = DecodeLength(t, symbol, &mut numDistRanges)? as usize;
                 distance = DecodeDistance2(t, numDistRanges)? as usize;
-                if distance >= max_2Byte_Dist {
+                if distance >= MAX_2_BYTE_DIST {
                     length += 1;
                 }
                 start = pos as i64 - distance as i64 - length as i64 + 1;
                 for j in 0..length {
-                    value = t.ptr1[(preLoadSize as i64 + (start + j as i64)) as usize];
+                    value = t.ptr1[(PRE_LOAD_SIZE as i64 + (start + j as i64)) as usize];
                     let fresh3 = pos;
-                    pos = pos + 1;
-                    t.ptr1[preLoadSize + fresh3 as usize] = value;
+                    pos += 1;
+                    t.ptr1[PRE_LOAD_SIZE + fresh3] = value;
                     if usingRunLength {
                         t.rlComp.save_bytes(value, &mut dataOut);
                     } else {
@@ -229,8 +229,8 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
                 continue;
             }
             let fresh5 = pos;
-            pos = pos + 1;
-            t.ptr1[preLoadSize + fresh5 as usize] = value;
+            pos += 1;
+            t.ptr1[PRE_LOAD_SIZE + fresh5] = value;
             if usingRunLength {
                 t.rlComp.save_bytes(value, &mut dataOut);
             } else {
@@ -239,8 +239,8 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
         }
     } else {
         let mut src = 0;
-        let mut dst = preLoadSize;
-        assert!(t.maxCopyDistance > preLoadSize);
+        let mut dst = PRE_LOAD_SIZE;
+        assert!(t.maxCopyDistance > PRE_LOAD_SIZE);
         pos = 0;
         while pos < t.out_len as usize {
             symbol = t.sym_ecoder.read_symbol(&mut t.bio)? as ::core::ffi::c_int;
@@ -249,19 +249,19 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
             } else if symbol as i64 == t.DUP2 {
                 src = dst.checked_sub(2)
                     .unwrap_or(dst + t.maxCopyDistance - 2);
-                value = t.ptr1[src as usize];
+                value = t.ptr1[src];
             } else if symbol as i64 == t.DUP4 {
                 src = dst.checked_sub(4)
                     .unwrap_or(dst + t.maxCopyDistance - 4);
-                value = t.ptr1[src as usize];
+                value = t.ptr1[src];
             } else if symbol as i64 == t.DUP6 {
                 src = dst.checked_sub(6)
                     .unwrap_or(dst + t.maxCopyDistance - 6);
-                value = t.ptr1[src as usize];
+                value = t.ptr1[src];
             } else {
                 length = DecodeLength(t, symbol, &mut numDistRanges)? as usize;
                 distance = DecodeDistance2(t, numDistRanges)? as usize;
-                if distance >= max_2Byte_Dist {
+                if distance >= MAX_2_BYTE_DIST {
                     length += 1;
                 }
                 start = dst as i64 - distance as i64 - length as i64 + 1;
@@ -270,9 +270,9 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
                     src = (start + j as i64)
                         .try_into()
                         .unwrap_or((start + j as i64 + t.maxCopyDistance as i64) as usize);
-                    value = t.ptr1[src as usize];
-                    t.ptr1[dst as usize] = value;
-                    dst = (dst + 1) % t.maxCopyDistance as usize;
+                    value = t.ptr1[src];
+                    t.ptr1[dst] = value;
+                    dst = (dst + 1) % t.maxCopyDistance;
                     pos += 1;
                     if usingRunLength {
                         t.rlComp.save_bytes(value, &mut dataOut);
@@ -282,8 +282,8 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
                 }
                 continue;
             }
-            t.ptr1[dst as usize] = value;
-            dst = (dst + 1) % t.maxCopyDistance as usize;
+            t.ptr1[dst] = value;
+            dst = (dst + 1) % t.maxCopyDistance;
             pos += 1;
             if usingRunLength {
                 t.rlComp.save_bytes(value, &mut dataOut);
@@ -303,7 +303,7 @@ fn Decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
 }
 
 pub fn MTX_LZCOMP_UnPackMemory(dataIn: &[u8], version: u8) -> Result<Vec<u8>, Error> {
-    let dist_width: i64 = 3 as i64;
+    let dist_width: i64 = 3_i64;
 
     let mut t = LZCOMP {
         ptr1: Vec::new(),
@@ -319,17 +319,17 @@ pub fn MTX_LZCOMP_UnPackMemory(dataIn: &[u8], version: u8) -> Result<Vec<u8>, Er
         NUM_SYMS: 0,
         maxCopyDistance: 0x7fffffff,
         dist_ecoder: AHUFF::new((1i64 << dist_width) as i16),
-        len_ecoder: AHUFF::new((1i64 << len_width) as i16),
+        len_ecoder: AHUFF::new((1i64 << LEN_WIDTH) as i16),
         sym_ecoder: AHUFF::PLACEHOLDER,
         bio: BITIO::new(dataIn),
     };
 
     t.usingRunLength = if version == 1 { false } else { t.bio.input_bit()? != 0 };
-    t.out_len = t.bio.read_value(24 as i64)? as i64;
+    t.out_len = t.bio.read_value(24_i64)? as i64;
     let out_len = t.out_len;
     SetDistRange(&mut t, out_len);
 
-    let mut maxOutSize =  t.out_len as usize + preLoadSize;
+    let maxOutSize =  t.out_len as usize + PRE_LOAD_SIZE;
     if t.maxCopyDistance < maxOutSize  {
         t.ptr1_IsSizeLimited = true;
         t.ptr1.resize(t.maxCopyDistance as _, 0);
@@ -371,15 +371,15 @@ pub fn unpackMtx(buf: &mut Stream, mut _size: u32) -> Result<[Vec<u8>; 3], Error
     let bufs = [
         MTX_LZCOMP_UnPackMemory(
             &buf.buf[offsets[0]..offsets[1]],
-            versionMagic as u8,
+            versionMagic,
         )?,
         MTX_LZCOMP_UnPackMemory(
             &buf.buf[offsets[1]..offsets[2]],
-            versionMagic as u8,
+            versionMagic,
         )?,
         MTX_LZCOMP_UnPackMemory(
             &buf.buf[offsets[2]..],
-            versionMagic as u8,
+            versionMagic,
         )?,
     ];
 

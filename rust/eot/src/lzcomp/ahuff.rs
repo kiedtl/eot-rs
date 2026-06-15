@@ -45,10 +45,10 @@ impl AHUFF {
     pub fn new(mut rangeIn: i16) -> AHUFF {
         let mut t = AHUFF::PLACEHOLDER;
 
-        let mut range =  rangeIn;
+        let range =  rangeIn;
         t.range = rangeIn as i64;
         t.bitCount = bits_used((rangeIn - 1 ) as _);
-        t.bitCount2 = 0 as i64;
+        t.bitCount2 = 0_i64;
         if rangeIn > 256 && rangeIn < 512 {
             rangeIn -= 256;
             t.bitCount2 = bits_used((rangeIn - 1) as _) + 1;
@@ -61,7 +61,7 @@ impl AHUFF {
         t.tree.resize(2 * range as usize, Node::ZEROED);
 
         /* Initialize the Huffman tree */
-        let mut limit = 2 * range as usize;
+        let limit = 2 * range as usize;
         for i in 2..limit {
             t.tree[i].up = i / 2;
             t.tree[i].weight = 1;
@@ -105,7 +105,7 @@ impl AHUFF {
 
         t.countB = 0;
         t.countA = t.countB;
-        return t;
+        t
     }
 
     pub fn read_symbol(&mut self, bio: &mut BITIO) -> Result<i16, Error> {
@@ -143,17 +143,15 @@ impl AHUFF {
         assert!(self.tree[upb].left == b || self.tree[upb].right == b);
         assert!(self.tree[a].weight == self.tree[b].weight);
 
-        let tNode = self.tree[a];
-        self.tree[a] = self.tree[b];
-        self.tree[b] = tNode;
+        self.tree.swap(a, b);
         self.tree[a].up = upa;
         self.tree[b].up = upb;
 
         let code = self.tree[a].code;
         if code < 0 {
             /* Internal nodes have children */
-            let left = self.tree[a].left as usize;
-            let right = self.tree[a].right as usize;
+            let left = self.tree[a].left;
+            let right = self.tree[a].right;
             self.tree[left].up = a;
             self.tree[right].up = a;
         } else {
@@ -164,8 +162,8 @@ impl AHUFF {
         let code = self.tree[b].code;
         if code < 0 {
             /* Internal nodes have children */
-            let left = self.tree[b].left as usize;
-            let right = self.tree[b].right as usize;
+            let left = self.tree[b].left;
+            let right = self.tree[b].right;
             self.tree[left].up = b;
             self.tree[right].up = b;
         } else {
@@ -179,14 +177,14 @@ impl AHUFF {
 
     fn update_weight(&mut self, mut a: usize) {
         while a != ROOT {
-            let mut weightA = self.tree[a as usize].weight;
+            let mut weightA = self.tree[a].weight;
             let mut b = a - 1;
             /* This if statement prevents sibling rule violations */
             assert!(self.tree[b].weight >= weightA);
-            if self.tree[b as usize].weight == weightA {
+            if self.tree[b].weight == weightA {
                 loop {
                     b -= 1;
-                    if self.tree[b as usize].weight != weightA {
+                    if self.tree[b].weight != weightA {
                         break;
                     }
                 }
@@ -198,11 +196,11 @@ impl AHUFF {
                 }
             }
             weightA += 1;
-            self.tree[a as usize].weight = weightA;
-            a = self.tree[a as usize].up;
+            self.tree[a].weight = weightA;
+            a = self.tree[a].up;
         }
         assert_eq!(a, ROOT);
-        self.tree[a as usize].weight += 1;
+        self.tree[a].weight += 1;
         assert_eq!(
             self.tree[a].weight,
             self.tree[self.tree[a].left].weight + self.tree[self.tree[a].right].weight
@@ -213,13 +211,13 @@ impl AHUFF {
     /* Recursively sets the parent weight equal to the sum of the two chilren's
      * weights. */
     fn init_weight(&mut self, a: usize) -> i64 {
-        if self.tree[a as usize].code < 0 {
+        if self.tree[a].code < 0 {
             /* Internal node */
-            self.tree[a as usize].weight =
-                self.init_weight(self.tree[a as usize].left as _) +
-                self.init_weight(self.tree[a as usize].right as _);
+            self.tree[a].weight =
+                self.init_weight(self.tree[a].left as _) +
+                self.init_weight(self.tree[a].right as _);
         }
-        return self.tree[a as usize].weight;
+        self.tree[a].weight
     }
 }
 

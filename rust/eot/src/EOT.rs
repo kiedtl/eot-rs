@@ -39,7 +39,7 @@ fn read_metadata_length(c: &mut Cursor<&[u8]>) -> Result<(u32, u32, u32), Error>
 fn read_u16_array(c: &mut Cursor<&[u8]>) -> Result<Vec<u16>, Error> {
     let size = read_u16_le2(c)? as usize;
 
-    if size % 2 != 0 {
+    if !size.is_multiple_of(2) {
         return Err(Error::BOGUS_STRING_SIZE);
     }
 
@@ -115,7 +115,7 @@ fn read_metadata_with_version(c: &mut Cursor<&[u8]>, meta: &mut EOTMetadata, ver
 
             meta.eudcInfo.flags = read_u32_le2(c)?;
             meta.eudcInfo.fontData = read_byte_array(c)?;
-            meta.eudcInfo.exists = meta.eudcInfo.fontData.len() > 0;
+            meta.eudcInfo.exists = !meta.eudcInfo.fontData.is_empty();
         }
     }
 
@@ -151,8 +151,8 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
 
     loop {
         let mut met = EOTMetadata::ZERO;
-        met.totalSize = total_size as u32;
-        met.fontDataSize = font_data_size as u32;
+        met.totalSize = total_size;
+        met.fontDataSize = font_data_size;
         let pos = c.position() as usize;
 
         if bytes.len() < met.fontDataSize as usize + pos {
@@ -195,5 +195,5 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
 /// on it before changing anything here.
 pub fn can_legally_edit(metadata: &EOTMetadata) -> bool {
     const EDITING_MASK: u16 = 0x8;
-    return metadata.permissions == 0 || ((metadata.permissions & EDITING_MASK) != 0);
+    metadata.permissions == 0 || ((metadata.permissions & EDITING_MASK) != 0)
 }

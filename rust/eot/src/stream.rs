@@ -48,7 +48,7 @@ impl Stream {
         Ok(match self.buf.len() - self.pos {
             1 => (self.be_read_u8()? as u32) << 24,
             2 => (self.be_read_u16()? as u32) << 16,
-            3 => (self.be_read_u24()? as u32) << 8,
+            3 => self.be_read_u24()? << 8,
             4 | _ => self.be_read_u32()?,
         })
     }
