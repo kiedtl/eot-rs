@@ -1,9 +1,10 @@
-use crate::{core::Error, ctf::parseCTF::parseCTF, lzcomp::lzcomp::unpackMtx, stream::Stream};
+use crate::{core::Error, ctf::parseCTF::parse_ctf, stream::Stream};
+use crate::lzcomp;
 
 const ENCRYPTION_KEY: u8 = 0x50;
 
-pub fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) -> Result<Vec<u8>, Error> {
-    let finalOutBuffer: Vec<u8>;
+pub fn write_font_buffer(data: &[u8], compressed: bool, encrypted: bool) -> Result<Vec<u8>, Error> {
+    let final_out_buffer: Vec<u8>;
 
     let mut buf = Vec::from(data);
     if encrypted {
@@ -14,19 +15,19 @@ pub fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) -> Result
 
     if compressed {
         let len = buf.len();
-        let mut sBuf = Stream::new(0);
-        sBuf.buf = buf;
-        let ctfs = unpackMtx(&mut sBuf, len as _)?;
+        let mut s_buf = Stream::new(0);
+        s_buf.buf = buf;
+        let ctfs = lzcomp::unpack_mtx(&mut s_buf, len as _)?;
 
         let mut streams: [Stream; 3] = [Stream::new2(0, 0), Stream::new2(0, 0), Stream::new2(0, 0)];
         for (stream, ctf) in streams.iter_mut().zip(ctfs.into_iter()) {
             stream.buf = ctf;
         }
-        let mut ctr = parseCTF(&mut streams)?;
-        finalOutBuffer = ctr.dumpToVec()?;
+        let mut ctr = parse_ctf(&mut streams)?;
+        final_out_buffer = ctr.dump_to_vec()?;
     } else {
-        finalOutBuffer = buf;
+        final_out_buffer = buf;
     }
 
-    Ok(finalOutBuffer)
+    Ok(final_out_buffer)
 }

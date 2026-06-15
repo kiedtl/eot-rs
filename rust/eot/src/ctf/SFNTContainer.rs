@@ -28,7 +28,7 @@ impl SFNTTable {
 }
 
 impl SFNTTable {
-    fn setAndWriteChecksum(&mut self, out: &mut Stream) -> Result<(), Error> {
+    fn set_and_write_checksum(&mut self, out: &mut Stream) -> Result<(), Error> {
         self.checksum = 0;
         self.offset = out.pos;
 
@@ -67,8 +67,8 @@ impl SFNTContainer {
         &mut self.tables[l]
     }
 
-    pub fn dumpToVec(&mut self) -> Result<Vec<u8>, Error> {
-        fn _writeTableDirectory(ctr: &mut SFNTContainer, out: &mut Stream) -> Result<(), Error> {
+    pub fn dump_to_vec(&mut self) -> Result<Vec<u8>, Error> {
+        fn _write_table_directory(ctr: &mut SFNTContainer, out: &mut Stream) -> Result<(), Error> {
             for i in 0..ctr.tables.len() {
                 let tbl = &mut ctr.tables[i];
 
@@ -83,27 +83,27 @@ impl SFNTContainer {
             Ok(())
         }
 
-        fn _writeOffsetTable(ctr: &mut SFNTContainer, s: &mut Stream) -> Result<(), Error> {
-            let scalerType: u32 = 0x10000_u32;
-            let numTables: u16 = ctr.tables.len() as u16;
-            let searchRange: u16 = (_maxpw(ctr.tables.len() as u32) * 16) as u16;
-            let entrySelector: u16 = _lgflr(ctr.tables.len() as u32) as u16;
-            let rangeShift: u16 = (numTables as i32 * 16i32 - (searchRange as i32)) as u16;
+        fn _write_offset_table(ctr: &mut SFNTContainer, s: &mut Stream) -> Result<(), Error> {
+            let scaler_type: u32 = 0x10000_u32;
+            let num_tables: u16 = ctr.tables.len() as u16;
+            let search_range: u16 = (_maxpw(ctr.tables.len() as u32) * 16) as u16;
+            let entry_selector: u16 = _lgflr(ctr.tables.len() as u32) as u16;
+            let range_shift: u16 = (num_tables as i32 * 16i32 - (search_range as i32)) as u16;
 
-            s.be_write_u32(scalerType)?;
-            s.be_write_u16(numTables)?;
-            s.be_write_u16(searchRange)?;
-            s.be_write_u16(entrySelector)?;
-            s.be_write_u16(rangeShift)?;
+            s.be_write_u32(scaler_type)?;
+            s.be_write_u16(num_tables)?;
+            s.be_write_u16(search_range)?;
+            s.be_write_u16(entry_selector)?;
+            s.be_write_u16(range_shift)?;
 
             Ok(())
         }
 
-        let mut s = Stream::new(self.getRequiredSize());
-        _writeOffsetTable(self, &mut s)?;
+        let mut s = Stream::new(self.get_required_size());
+        _write_offset_table(self, &mut s)?;
 
-        let tableDirectoryOffset = s.pos;
-        s.seek_relative_through_reserve(self.getTableDirectorySize() as isize)?;
+        let table_directory_offset = s.pos;
+        s.seek_relative_through_reserve(self.get_table_directory_size() as isize)?;
 
         let mut head = None;
         let mut chk = 0u32;
@@ -113,7 +113,7 @@ impl SFNTContainer {
                 head = Some(i);
             }
             tbl.offset = s.pos;
-            tbl.setAndWriteChecksum(&mut s)?;
+            tbl.set_and_write_checksum(&mut s)?;
             chk = chk.wrapping_add(tbl.checksum);
         }
         let Some(head) = head else {
@@ -121,8 +121,8 @@ impl SFNTContainer {
             return Err(Error::LOGIC_ERROR);
         };
 
-        s.seek_absolute(tableDirectoryOffset)?;
-        _writeTableDirectory(self, &mut s)?;
+        s.seek_absolute(table_directory_offset)?;
+        _write_table_directory(self, &mut s)?;
 
         let beginning_chk = s.be_checksum32(0, s.pos)?;
         chk = chk.wrapping_add(beginning_chk);
@@ -130,19 +130,19 @@ impl SFNTContainer {
         // now put in the global checksum. It's OK that this will make the head checksum incorrect!
         // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
         // value.
-        let finalChecksum = 0xb1b0afbau32.wrapping_sub(chk);
+        let final_checksum = 0xb1b0afbau32.wrapping_sub(chk);
         s.seek_absolute(self.tables[head].offset + 8)?;
-        s.be_write_u32(finalChecksum)?;
+        s.be_write_u32(final_checksum)?;
 
         Ok(s.buf)
     }
 
-    fn getTableDirectorySize(&self) -> usize {
+    fn get_table_directory_size(&self) -> usize {
         self.tables.len() * 16
     }
 
-    fn getRequiredSize(&self) -> usize {
-        let mut ret = 12 + self.getTableDirectorySize();
+    fn get_required_size(&self) -> usize {
+        let mut ret = 12 + self.get_table_directory_size();
         for tbl in &self.tables {
             ret += tbl.buf.len().div_ceil(4) * 4;
         }
@@ -192,7 +192,7 @@ fn _maxpw(mut n: u32) -> u32 {
     ret
 }
 
-pub fn loadTableFromStream(tbl: &mut SFNTTable, s: &mut Stream) -> Result<(), Error> {
+pub fn load_table_from_stream(tbl: &mut SFNTTable, s: &mut Stream) -> Result<(), Error> {
     s.seek_absolute(tbl.offset as _).map_err(|_| Error::CORRUPT_FILE)?;
     let end = s.pos + tbl.buf.len();
     if end > s.buf.len() {

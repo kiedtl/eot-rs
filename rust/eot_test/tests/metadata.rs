@@ -107,7 +107,7 @@ fn metadata_matches_legacy_api() {
 
         let r = EOT::read_metadata(&data).unwrap();
 
-        assert_eq!(r.totalSize, c.total_size, "totalSize");
+        assert_eq!(r.total_size, c.total_size, "total_size");
         assert_eq!(r.version, c.version, "version");
         assert_eq!(r.flags, c.flags, "flags");
         assert_eq!(r.panose, c.panose, "panose");
@@ -115,29 +115,29 @@ fn metadata_matches_legacy_api() {
         assert_eq!(r.italic, c.italic, "italic");
         assert_eq!(r.weight, c.weight, "weight");
         assert_eq!(r.permissions, c.permissions, "permissions");
-        assert_eq!(r.unicodeRange, c.unicode_range, "unicodeRange");
-        assert_eq!(r.codePageRange, c.code_page_range, "codePageRange");
-        assert_eq!(r.checkSumAdjustment, c.check_sum_adjustment, "checkSumAdjustment");
-        assert_eq!(r.fontDataSize, c.font_data_size, "fontDataSize");
-        assert_eq!(r.fontDataOffset, c.font_data_offset, "fontDataOffset");
-        assert_eq!(r.numRootStrings, c.num_root_strings, "numRootStrings");
+        assert_eq!(r.unicode_range, c.unicode_range, "unicode_range");
+        assert_eq!(r.code_page_range, c.code_page_range, "code_page_range");
+        assert_eq!(r.check_sum_adjustment, c.check_sum_adjustment, "check_sum_adjustment");
+        assert_eq!(r.font_data_size, c.font_data_size, "font_data_size");
+        assert_eq!(r.font_data_offset, c.font_data_offset, "font_data_offset");
+        assert_eq!(r.num_root_strings, c.num_root_strings, "num_root_strings");
 
         unsafe {
-            assert_eq!(r.familyName, c_u16s(c.family_name, c.family_name_size), "familyName");
-            assert_eq!(r.styleName, c_u16s(c.style_name, c.style_name_size), "styleName");
-            assert_eq!(r.versionName, c_u16s(c.version_name, c.version_name_size), "versionName");
-            assert_eq!(r.fullName, c_u16s(c.full_name, c.full_name_size), "fullName");
+            assert_eq!(r.family_name, c_u16s(c.family_name, c.family_name_size), "family_name");
+            assert_eq!(r.style_name, c_u16s(c.style_name, c.style_name_size), "style_name");
+            assert_eq!(r.version_name, c_u16s(c.version_name, c.version_name_size), "version_name");
+            assert_eq!(r.full_name, c_u16s(c.full_name, c.full_name_size), "full_name");
             assert_eq!(r.do_not_use, c_u16s(c.do_not_use, c.do_not_use_size), "do_not_use");
         }
 
-        assert_eq!(r.eudcInfo.exists, c.eudc_info.exists, "eudc.exists");
-        assert_eq!(r.eudcInfo.codePage, c.eudc_info.code_page, "eudc.codePage");
-        assert_eq!(r.eudcInfo.flags, c.eudc_info.flags, "eudc.flags");
+        assert_eq!(r.eudc_info.exists, c.eudc_info.exists, "eudc.exists");
+        assert_eq!(r.eudc_info.code_page, c.eudc_info.code_page, "eudc.code_page");
+        assert_eq!(r.eudc_info.flags, c.eudc_info.flags, "eudc.flags");
         unsafe {
             assert_eq!(
-                r.eudcInfo.fontData,
+                r.eudc_info.font_data,
                 c_bytes(c.eudc_info.font_data, c.eudc_info.font_data_size),
-                "eudc.fontData"
+                "eudc.font_data"
             );
         }
 

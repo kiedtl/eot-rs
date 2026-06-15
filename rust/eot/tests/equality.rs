@@ -1,4 +1,4 @@
-use eot::libeot::EOT2ttf_buffer;
+use eot::libeot::eot2ttf_buffer;
 
 #[test]
 fn checks() {
@@ -23,11 +23,7 @@ fn checks() {
     for inp in files {
         let data = std::fs::read(inp).unwrap();
 
-        let out;
-
-        unsafe {
-            (_, out) = EOT2ttf_buffer(&data).unwrap();
-        }
+        let (_, out) = eot2ttf_buffer(&data).unwrap();
 
         let face = ttf_parser::Face::parse(&out, 0).expect("ttf::Face::parse failed");
         println!("ttf_parser OK: {} glyphs, italic={}, weight={}",

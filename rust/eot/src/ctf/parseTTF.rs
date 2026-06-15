@@ -6,36 +6,36 @@ use crate::{core::*, ctf::SFNTContainer::SFNTTable};
 
 #[derive(Copy, Clone)]
 pub struct TTFheadData {
-    pub indexToLocFormat: i16,
+    pub index_to_loc_format: i16,
 }
 
 #[derive(Copy, Clone, Default)]
 pub struct TTFmaxpData {
-    pub numGlyphs: u16,
-    pub maxPoints: u16,
-    pub maxContours: u16,
-    pub maxComponentPoints: u16,
-    pub maxComponentContours: u16,
-    pub maxZones: u16,
-    pub maxTwilightPoints: u16,
-    pub maxStorage: u16,
-    pub maxFunctionDefs: u16,
-    pub maxInstructionDefs: u16,
-    pub maxStackElements: u16,
-    pub maxSizeOfInstructions: u16,
-    pub maxComponentElements: u16,
-    pub maxComponentDepth: u16,
+    pub num_glyphs: u16,
+    pub max_points: u16,
+    pub max_contours: u16,
+    pub max_component_points: u16,
+    pub max_component_contours: u16,
+    pub max_zones: u16,
+    pub max_twilight_points: u16,
+    pub max_storage: u16,
+    pub max_function_defs: u16,
+    pub max_instruction_defs: u16,
+    pub max_stack_elements: u16,
+    pub max_size_of_instructions: u16,
+    pub max_component_elements: u16,
+    pub max_component_depth: u16,
 }
 
-pub fn TTFParseHead(tbl: &SFNTTable) -> Result<TTFheadData, Error> {
+pub fn ttf_parse_head(tbl: &SFNTTable) -> Result<TTFheadData, Error> {
     if tbl.buf.len() < 52 {
         return Err(Error::CORRUPT_FILE);
     }
-    let indexToLocFormat = i16::from_be_bytes([tbl.buf[50], tbl.buf[51]]);
-    Ok(TTFheadData { indexToLocFormat })
+    let index_to_loc_format = i16::from_be_bytes([tbl.buf[50], tbl.buf[51]]);
+    Ok(TTFheadData { index_to_loc_format })
 }
 
-pub fn TTFParseMaxp(tbl: &SFNTTable) -> Result<TTFmaxpData, Error> {
+pub fn ttf_parse_maxp(tbl: &SFNTTable) -> Result<TTFmaxpData, Error> {
     let mut out = TTFmaxpData::default();
 
     let mut c = Cursor::new(&tbl.buf);
@@ -43,21 +43,21 @@ pub fn TTFParseMaxp(tbl: &SFNTTable) -> Result<TTFmaxpData, Error> {
 
     let mut ru16 = || -> Result<u16, Error> { c.read_u16::<BE>().map_err(|_| Error::CORRUPT_FILE) };
 
-    out.numGlyphs = ru16()?;
+    out.num_glyphs = ru16()?;
     if version == 0x00010000 {
-        out.maxPoints = ru16()?;
-        out.maxContours = ru16()?;
-        out.maxComponentPoints = ru16()?;
-        out.maxComponentContours = ru16()?;
-        out.maxZones = ru16()?;
-        out.maxTwilightPoints = ru16()?;
-        out.maxStorage = ru16()?;
-        out.maxFunctionDefs = ru16()?;
-        out.maxInstructionDefs = ru16()?;
-        out.maxStackElements = ru16()?;
-        out.maxSizeOfInstructions = ru16()?;
-        out.maxComponentElements = ru16()?;
-        out.maxComponentDepth = ru16()?;
+        out.max_points = ru16()?;
+        out.max_contours = ru16()?;
+        out.max_component_points = ru16()?;
+        out.max_component_contours = ru16()?;
+        out.max_zones = ru16()?;
+        out.max_twilight_points = ru16()?;
+        out.max_storage = ru16()?;
+        out.max_function_defs = ru16()?;
+        out.max_instruction_defs = ru16()?;
+        out.max_stack_elements = ru16()?;
+        out.max_size_of_instructions = ru16()?;
+        out.max_component_elements = ru16()?;
+        out.max_component_depth = ru16()?;
     }
 
     Ok(out)

@@ -24,26 +24,26 @@ const ROOT: usize = 1;
 #[derive(Clone)]
 pub struct AHUFF {
     tree: Vec<Node>,
-    symbolIndex: Vec<usize>,
-    bitCount: i64,
-    bitCount2: i64,
+    symbol_index: Vec<usize>,
+    bit_count: i64,
+    bit_count2: i64,
     range: i64,
-    maxSymbol: i32,
-    countA: i64,
-    countB: i64,
+    max_symbol: i32,
+    count_a: i64,
+    count_b: i64,
     sym_count: i64,
 }
 
 impl AHUFF {
     pub const PLACEHOLDER: AHUFF = AHUFF {
         tree: Vec::new(),
-        symbolIndex: Vec::new(),
-        bitCount: 0,
-        bitCount2: 0,
+        symbol_index: Vec::new(),
+        bit_count: 0,
+        bit_count2: 0,
         range: 0,
-        maxSymbol: 0,
-        countA: 0,
-        countB: 0,
+        max_symbol: 0,
+        count_a: 0,
+        count_b: 0,
         sym_count: 0,
     };
 
@@ -52,17 +52,17 @@ impl AHUFF {
 
         let range = rangeIn;
         t.range = rangeIn as i64;
-        t.bitCount = bits_used((rangeIn - 1) as _);
-        t.bitCount2 = 0_i64;
+        t.bit_count = bits_used((rangeIn - 1) as _);
+        t.bit_count2 = 0_i64;
         if rangeIn > 256 && rangeIn < 512 {
             rangeIn -= 256;
-            t.bitCount2 = bits_used((rangeIn - 1) as _) + 1;
+            t.bit_count2 = bits_used((rangeIn - 1) as _) + 1;
         }
-        t.maxSymbol = (range - 1) as _;
+        t.max_symbol = (range - 1) as _;
         t.sym_count = 0;
-        t.countB = 100;
-        t.countA = t.countB;
-        t.symbolIndex.resize(range as _, 0);
+        t.count_b = 100;
+        t.count_a = t.count_b;
+        t.symbol_index.resize(range as _, 0);
         t.tree.resize(2 * range as usize, Node::ZEROED);
 
         // Initialize the Huffman tree
@@ -80,36 +80,36 @@ impl AHUFF {
             t.tree[(range as usize) + i].code = i as i16;
             t.tree[(range as usize) + i].left = usize::MAX;
             t.tree[(range as usize) + i].right = usize::MAX;
-            t.symbolIndex[i] = range as usize + i;
+            t.symbol_index[i] = range as usize + i;
         }
 
         t.init_weight(ROOT as _);
 
-        if t.bitCount2 != 0 {
-            let wa = t.symbolIndex[256];
+        if t.bit_count2 != 0 {
+            let wa = t.symbol_index[256];
             t.update_weight(wa);
-            let wb = t.symbolIndex[257];
+            let wb = t.symbol_index[257];
             t.update_weight(wb);
             assert!(258 < range);
             for _ in 0..12 {
-                let wx = t.symbolIndex[(range - 3) as usize];
+                let wx = t.symbol_index[(range - 3) as usize];
                 t.update_weight(wx);
             }
             for _ in 0..6 {
-                let wx = t.symbolIndex[(range - 2) as usize];
+                let wx = t.symbol_index[(range - 2) as usize];
                 t.update_weight(wx);
             }
         } else {
             for _ in 0..2 {
                 for i in 0..(range as usize) {
-                    let wx = t.symbolIndex[i];
+                    let wx = t.symbol_index[i];
                     t.update_weight(wx);
                 }
             }
         }
 
-        t.countB = 0;
-        t.countA = t.countB;
+        t.count_b = 0;
+        t.count_a = t.count_b;
         t
     }
 
@@ -136,8 +136,8 @@ impl AHUFF {
         assert!(b > ROOT);
         assert!((a as i64) < 2 * self.range);
         assert!((b as i64) < 2 * self.range);
-        // assert!(tree[a].code < 0 || self.symbolIndex[tree[a].code] == a);
-        // assert!(tree[b].code < 0 || self.symbolIndex[tree[b].code] == b);
+        // assert!(tree[a].code < 0 || self.symbol_index[tree[a].code] == a);
+        // assert!(tree[b].code < 0 || self.symbol_index[tree[b].code] == b);
 
         let upa = self.tree[a].up;
         let upb = self.tree[b].up;
@@ -161,7 +161,7 @@ impl AHUFF {
             self.tree[right].up = a;
         } else {
             assert!((code as i64) < self.range);
-            self.symbolIndex[code as usize] = a;
+            self.symbol_index[code as usize] = a;
         }
 
         let code = self.tree[b].code;
@@ -173,7 +173,7 @@ impl AHUFF {
             self.tree[right].up = b;
         } else {
             // assert(code < self->range);
-            self.symbolIndex[code as usize] = b;
+            self.symbol_index[code as usize] = b;
         }
 
         assert!(self.tree[upa].left == a || self.tree[upa].right == a);
@@ -182,14 +182,14 @@ impl AHUFF {
 
     fn update_weight(&mut self, mut a: usize) {
         while a != ROOT {
-            let mut weightA = self.tree[a].weight;
+            let mut weight_a = self.tree[a].weight;
             let mut b = a - 1;
             // This if statement prevents sibling rule violations
-            assert!(self.tree[b].weight >= weightA);
-            if self.tree[b].weight == weightA {
+            assert!(self.tree[b].weight >= weight_a);
+            if self.tree[b].weight == weight_a {
                 loop {
                     b -= 1;
-                    if self.tree[b].weight != weightA {
+                    if self.tree[b].weight != weight_a {
                         break;
                     }
                 }
@@ -200,8 +200,8 @@ impl AHUFF {
                     a = b;
                 }
             }
-            weightA += 1;
-            self.tree[a].weight = weightA;
+            weight_a += 1;
+            self.tree[a].weight = weight_a;
             a = self.tree[a].up;
         }
         assert_eq!(a, ROOT);

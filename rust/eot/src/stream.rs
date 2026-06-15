@@ -1,4 +1,5 @@
 #[derive(Copy, Clone)]
+#[allow(non_camel_case_types)]
 pub enum Error {
     OFF_BYTE_BOUNDARY = 7,
     VALUE_OUT_OF_BOUNDS = 6,

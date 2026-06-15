@@ -80,27 +80,27 @@ fn read_metadata_with_version(
     }
 
     for i in 0..4 {
-        meta.unicodeRange[i] = read_u32_le2(c)?;
+        meta.unicode_range[i] = read_u32_le2(c)?;
     }
 
     for i in 0..2 {
-        meta.codePageRange[i] = read_u32_le2(c)?;
+        meta.code_page_range[i] = read_u32_le2(c)?;
     }
 
-    meta.checkSumAdjustment = read_u32_le2(c)?;
+    meta.check_sum_adjustment = read_u32_le2(c)?;
     skip(c, 16)?; // Reserved
 
     skip_padding(c, 2)?;
-    meta.familyName = read_u16_array(c)?;
+    meta.family_name = read_u16_array(c)?;
 
     skip_padding(c, 2)?;
-    meta.styleName = read_u16_array(c)?;
+    meta.style_name = read_u16_array(c)?;
 
     skip_padding(c, 2)?;
-    meta.versionName = read_u16_array(c)?;
+    meta.version_name = read_u16_array(c)?;
 
     skip_padding(c, 2)?;
-    meta.fullName = read_u16_array(c)?;
+    meta.full_name = read_u16_array(c)?;
 
     if meta.version > VERSION_1 {
         skip_padding(c, 2)?;
@@ -108,25 +108,25 @@ fn read_metadata_with_version(
 
         if meta.version == VERSION_3 {
             skip(c, 4)?; // RootStringChecksum: unused
-            meta.eudcInfo.codePage = read_u32_le2(c)?;
+            meta.eudc_info.code_page = read_u32_le2(c)?;
 
             skip_padding(c, 2)?;
 
             // Signature is reserved and not used (must be zeroed), so do nothing with this.
-            let signatureSize = read_u16_le2(c)?;
-            skip_padding(c, signatureSize)?;
+            let signature_size = read_u16_le2(c)?;
+            skip_padding(c, signature_size)?;
 
-            meta.eudcInfo.flags = read_u32_le2(c)?;
-            meta.eudcInfo.fontData = read_byte_array(c)?;
-            meta.eudcInfo.exists = !meta.eudcInfo.fontData.is_empty();
+            meta.eudc_info.flags = read_u32_le2(c)?;
+            meta.eudc_info.font_data = read_byte_array(c)?;
+            meta.eudc_info.exists = !meta.eudc_info.font_data.is_empty();
         }
     }
 
     // The cursor spans the whole file, so its position is already the absolute
     // offset of the font data; no base offset needs to be added here.
-    meta.fontDataOffset = c.position() as u32;
-    let expected_header_size = meta.totalSize.wrapping_sub(meta.fontDataSize);
-    if meta.fontDataOffset < expected_header_size {
+    meta.font_data_offset = c.position() as u32;
+    let expected_header_size = meta.total_size.wrapping_sub(meta.font_data_size);
+    if meta.font_data_offset < expected_header_size {
         return Err(Error::HEADER_TOO_BIG);
     }
 
@@ -148,42 +148,42 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
         _ => return Err(Error::CORRUPT_FILE),
     };
 
-    let mut tryVersion = coded_version;
-    let mut bumpedUp = false;
-    let mut knockedDown = false;
+    let mut try_version = coded_version;
+    let mut bumped_up = false;
+    let mut knocked_down = false;
 
     loop {
         let mut met = EOTMetadata::ZERO;
-        met.totalSize = total_size;
-        met.fontDataSize = font_data_size;
+        met.total_size = total_size;
+        met.font_data_size = font_data_size;
         let pos = c.position() as usize;
 
-        if bytes.len() < met.fontDataSize as usize + pos {
+        if bytes.len() < met.font_data_size as usize + pos {
             return Err(Error::CORRUPT_FILE);
         }
 
-        match read_metadata_with_version(&mut c, &mut met, tryVersion) {
+        match read_metadata_with_version(&mut c, &mut met, try_version) {
             Ok(()) =>
-                if tryVersion == coded_version {
+                if try_version == coded_version {
                     return Ok(met);
                 } else {
                     return Err(Error::WARN_BAD_VERSION);
                 },
             Err(Error::HEADER_TOO_BIG) => {
-                if knockedDown || tryVersion == VERSION_3 {
+                if knocked_down || try_version == VERSION_3 {
                     return Err(Error::CORRUPT_FILE);
                 }
-                knockedDown = false;
-                bumpedUp = true;
-                tryVersion += 1;
+                knocked_down = false;
+                bumped_up = true;
+                try_version += 1;
             }
             Err(Error::INSUFFICIENT_BYTES) => {
-                if bumpedUp || tryVersion == VERSION_1 {
+                if bumped_up || try_version == VERSION_1 {
                     return Err(Error::CORRUPT_FILE);
                 }
-                knockedDown = true;
-                bumpedUp = false;
-                tryVersion -= 1;
+                knocked_down = true;
+                bumped_up = false;
+                try_version -= 1;
             }
             Err(e) => return Err(e),
         }

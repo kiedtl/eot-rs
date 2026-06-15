@@ -1,5 +1,6 @@
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
+#[allow(non_camel_case_types)]
 pub enum Error {
     WARN_NOT_ENOUGH_GLYPHS = 1002,
     WARN_BAD_VERSION = 1001,
@@ -16,10 +17,6 @@ pub enum Error {
     NO_HEAD_TABLE = 13,
     NO_MAXP_TABLE = 12,
     LOGIC_ERROR = 11,
-    COMPRESSION_NOT_YET_IMPLEMENTED = 10,
-    FWRITE_ERROR = 9,
-    OTHER_STDLIB_ERROR = 8,
-    CANT_ALLOCATE_MEMORY = 7,
     THIRD_STREAM_INCOMPLETE = 6,
     SECOND_STREAM_INCOMPLETE = 5,
     CORRUPT_FILE = 4,
@@ -27,6 +24,35 @@ pub enum Error {
     HEADER_TOO_BIG = 2,
     INSUFFICIENT_BYTES = 1,
 }
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Error::WARN_NOT_ENOUGH_GLYPHS => "Not enough glyphs",
+            Error::WARN_BAD_VERSION => "Incorrect version in EOT header",
+            Error::WARN_NOT_ENOUGH_SPACE_RESERVED => "Not enough space reserved",
+            Error::BITIO_END_OF_FILE => "Unexpected end of file",
+            Error::LZCOMP_ERROR => "LZCOMP error",
+            Error::CORRUPT_FILE_PADDING_NOT_ZERO => "Corrupt file: padding is not zeroed",
+            Error::MALFORMED_HEAD_TABLE => "Malformed HEAD table",
+            Error::MTX_ERROR => "Couldn't decode MTX data",
+            Error::UNKNOWN_BUFFER_WRITE_ERROR => "Unknown buffer write error. This may be a bug in libeot.",
+            Error::CORRUPT_HOPCODE_DATA => "Corrupt hopcode data",
+            Error::NO_HDMX_TABLE => "No HDMX table",
+            Error::NO_HMTX_TABLE => "No HMTX table",
+            Error::NO_HEAD_TABLE => "No HEAD table",
+            Error::NO_MAXP_TABLE => "No MAXP table",
+            Error::LOGIC_ERROR => "Logic error. This may be a bug in libeot.",
+            Error::THIRD_STREAM_INCOMPLETE => "Third data stream incomplete",
+            Error::SECOND_STREAM_INCOMPLETE => "Second data stream incomplete",
+            Error::CORRUPT_FILE => "Corrupt data",
+            Error::BOGUS_STRING_SIZE => "Corrupt data: bogus string size",
+            Error::HEADER_TOO_BIG => "Corrupt data: header too big",
+            Error::INSUFFICIENT_BYTES => "Font file is truncated",
+        })
+    }
+}
+
 
 impl From<crate::stream::Error> for Error {
     fn from(_: crate::stream::Error) -> Error {
@@ -37,17 +63,17 @@ impl From<crate::stream::Error> for Error {
 #[derive(Clone)]
 #[repr(C)]
 pub struct EOTRootStringInfo {
-    pub rootStringSize: u16,
-    pub rootString: *mut u16,
+    pub root_string_size: u16,
+    pub root_string: *mut u16,
 }
 
 #[derive(Clone)]
 #[repr(C)]
 pub struct EUDCInfo {
-    pub exists:   bool,
-    pub codePage: u32,
-    pub flags:    u32,
-    pub fontData: Vec<u8>,
+    pub exists:    bool,
+    pub code_page: u32,
+    pub flags:     u32,
+    pub font_data: Vec<u8>,
 }
 
 pub type EOTVersion = ::core::ffi::c_uint;
@@ -79,7 +105,7 @@ pub const ANSI_CHARSET: EOTCharset = 0;
 #[derive(Clone)]
 #[repr(C)]
 pub struct EOTMetadata {
-    pub totalSize: u32,
+    pub total_size: u32,
     pub version: EOTVersion,
     pub flags: u32,
     pub panose: [u8; 10],
@@ -87,23 +113,23 @@ pub struct EOTMetadata {
     pub italic: bool,
     pub weight: u32,
     pub permissions: u16,
-    pub unicodeRange: [u32; 4],
-    pub codePageRange: [u32; 2],
-    pub checkSumAdjustment: u32,
-    pub familyName: Vec<u16>,
-    pub styleName: Vec<u16>,
-    pub versionName: Vec<u16>,
-    pub fullName: Vec<u16>,
-    pub numRootStrings: ::core::ffi::c_uint,
-    pub fontDataSize: u32,
-    pub fontDataOffset: u32,
-    pub eudcInfo: EUDCInfo,
+    pub unicode_range: [u32; 4],
+    pub code_page_range: [u32; 2],
+    pub check_sum_adjustment: u32,
+    pub family_name: Vec<u16>,
+    pub style_name: Vec<u16>,
+    pub version_name: Vec<u16>,
+    pub full_name: Vec<u16>,
+    pub num_root_strings: ::core::ffi::c_uint,
+    pub font_data_size: u32,
+    pub font_data_offset: u32,
+    pub eudc_info: EUDCInfo,
     pub do_not_use: Vec<u16>,
 }
 
 impl EOTMetadata {
     pub const ZERO: EOTMetadata = EOTMetadata {
-        totalSize: 0,
+        total_size: 0,
         version: 0 as EOTVersion,
         flags: 0,
         panose: [0; 10],
@@ -111,22 +137,22 @@ impl EOTMetadata {
         italic: false,
         weight: 0,
         permissions: 0,
-        unicodeRange: [0; 4],
-        codePageRange: [0; 2],
-        checkSumAdjustment: 0,
-        familyName: Vec::new(),
-        styleName: Vec::new(),
-        versionName: Vec::new(),
-        fullName: Vec::new(),
+        unicode_range: [0; 4],
+        code_page_range: [0; 2],
+        check_sum_adjustment: 0,
+        family_name: Vec::new(),
+        style_name: Vec::new(),
+        version_name: Vec::new(),
+        full_name: Vec::new(),
         do_not_use: Vec::new(),
-        numRootStrings: 0,
-        fontDataSize: 0,
-        fontDataOffset: 0,
-        eudcInfo: EUDCInfo {
-            exists:   false,
-            codePage: 0,
-            flags:    0,
-            fontData: Vec::new(),
+        num_root_strings: 0,
+        font_data_size: 0,
+        font_data_offset: 0,
+        eudc_info: EUDCInfo {
+            exists:    false,
+            code_page: 0,
+            flags:     0,
+            font_data: Vec::new(),
         },
     };
 }
