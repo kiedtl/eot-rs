@@ -1,5 +1,10 @@
+// Copyright (c) 2013-2026 Brennan T. Vincent <brennanv@email.arizona.edu>
+// Copyright (c) 2026 Kiëd Llaentenn <kiedtl@tilde.team>
+//
+// This file is part of eot-rs, which is based on libeot, which is licensed under the MPL license,
+// version 2.0. For full details, read the LICENSE and PATENTS file.
+
 pub mod core;
-pub mod libeot;
 pub mod metadata;
 
 mod lzcomp;
