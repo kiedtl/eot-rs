@@ -1,10 +1,10 @@
-pub mod metadata;
 pub mod core;
 pub mod libeot;
+pub mod metadata;
 
+mod lzcomp;
 mod stream;
 mod triplet_encodings;
-mod lzcomp;
 
 pub mod ctf {
     pub mod SFNTContainer;
@@ -13,8 +13,9 @@ pub mod ctf {
 }
 
 use core::Error;
-use metadata::Metadata;
+
 use ctf::parseCTF::parse_ctf;
+use metadata::Metadata;
 use stream::Stream;
 
 const TTEMBED_TTCOMPRESSED: ::core::ffi::c_int = 0x4 as ::core::ffi::c_int;

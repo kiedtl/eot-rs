@@ -53,7 +53,6 @@ impl std::fmt::Display for Error {
     }
 }
 
-
 impl From<crate::stream::Error> for Error {
     fn from(_: crate::stream::Error) -> Error {
         Error::LOGIC_ERROR
@@ -70,9 +69,9 @@ pub struct EOTRootStringInfo {
 #[derive(Clone)]
 #[repr(C)]
 pub struct EUDCInfo {
-    pub exists:    bool,
+    pub exists: bool,
     pub code_page: u32,
-    pub flags:     u32,
+    pub flags: u32,
     pub font_data: Vec<u8>,
 }
 

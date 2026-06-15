@@ -1,4 +1,5 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
+
 use byteorder::{LE, ReadBytesExt};
 
 use crate::core::*;
@@ -50,9 +51,9 @@ impl Metadata {
         font_data_size: 0,
         font_data_offset: 0,
         eudc_info: EUDCInfo {
-            exists:    false,
+            exists: false,
             code_page: 0,
-            flags:     0,
+            flags: 0,
             font_data: Vec::new(),
         },
     };

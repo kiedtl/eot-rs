@@ -4,7 +4,7 @@ mod bitio;
 use ahuff::*;
 use bitio::*;
 
-use crate::{ core::Error, stream::Stream };
+use crate::{core::Error, stream::Stream};
 
 #[derive(Copy, Clone, Default)]
 pub enum RunLengthCompState {
@@ -103,7 +103,9 @@ fn set_dist_range(t: &mut LZCOMP, length: i64) {
     t.num_syms = t.dup6 + 1;
 }
 
-fn decode_length(t: &mut LZCOMP, symbol: ::core::ffi::c_int, num_dist_ranges: &mut i64) -> Result<i64, Error> {
+fn decode_length(
+    t: &mut LZCOMP, symbol: ::core::ffi::c_int, num_dist_ranges: &mut i64,
+) -> Result<i64, Error> {
     const LEN_MIN: i64 = 2;
     const BIT_RANGE: u64 = 3 - 1; /* == len_width - 1 */
 

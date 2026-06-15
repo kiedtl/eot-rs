@@ -114,11 +114,19 @@ fn _dpi_dump2(
 ) -> Result<(), StreamError> {
     if *type_last_read_count > 0 {
         if *type_last_read_count < 8 {
-            let op: u8 = (if *last_read == DpiTypeRead::Byte { PUSHB } else { PUSHW }) as u8
+            let op: u8 = (if *last_read == DpiTypeRead::Byte {
+                PUSHB
+            } else {
+                PUSHW
+            }) as u8
                 | (*type_last_read_count).wrapping_sub(1) as u8;
             out.be_write_u8(op)?;
         } else {
-            let op: u8 = if *last_read == DpiTypeRead::Byte { NPUSHB } else { NPUSHW } as u8;
+            let op: u8 = if *last_read == DpiTypeRead::Byte {
+                NPUSHB
+            } else {
+                NPUSHW
+            } as u8;
             out.be_write_u8(op)?;
             out.be_write_u8(*type_last_read_count as u8)?;
         }
@@ -144,7 +152,11 @@ fn _dpi_put2(
     value: i16, out: &mut Stream, last_read: &mut DpiTypeRead, type_last_read_count: &mut u32,
     data: &mut Vec<i16>, data_index: &mut u32,
 ) -> Result<(), StreamError> {
-    let new_type = if (0..256).contains(&value) { DpiTypeRead::Byte } else { DpiTypeRead::Short };
+    let new_type = if (0..256).contains(&value) {
+        DpiTypeRead::Byte
+    } else {
+        DpiTypeRead::Short
+    };
     if new_type != *last_read || *type_last_read_count == 255 {
         _dpi_dump2(out, last_read, type_last_read_count, data, data_index)?;
         *last_read = new_type;
@@ -177,13 +189,34 @@ fn decode_push_instructions(s_in: &mut Stream, s_out: &mut Stream, push_count: u
                 let prev = data[(data_index - 2) as usize];
                 // code = s_in.be_read_u8()?;
                 _ = s_in.be_read_u8()?;
-                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    prev,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
                 let val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    val,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    prev,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
             }
             0xFC => {
                 if remaining < 5 || data_index < 2 {
@@ -193,23 +226,65 @@ fn decode_push_instructions(s_in: &mut Stream, s_out: &mut Stream, push_count: u
                 let prev = data[(data_index - 2) as usize];
                 // code = s_in.be_read_u8()?;
                 _ = s_in.be_read_u8()?;
-                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    prev,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
                 let mut val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    val,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    prev,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
                 val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    val,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    prev,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
             }
             _ => {
                 let val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
-                    .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(
+                    val,
+                    s_out,
+                    &mut type_last_read,
+                    &mut type_last_read_count,
+                    &mut data,
+                    &mut data_index,
+                )
+                .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
                 remaining -= 1;
             }
         }
@@ -252,8 +327,8 @@ fn _dsg_make_flags(x: i16, y: i16, on_curve: bool, first_time: bool) -> u8 {
 }
 
 fn decode_simple_glyph(
-    num_contours: i16, streams: &mut [Stream], out: &mut Stream, calculate_bounding_box: bool, mut min_x: i16,
-    mut min_y: i16, mut max_x: i16, mut max_y: i16,
+    num_contours: i16, streams: &mut [Stream], out: &mut Stream, calculate_bounding_box: bool,
+    mut min_x: i16, mut min_y: i16, mut max_x: i16, mut max_y: i16,
 ) -> Result<(), Error> {
     if num_contours == 0 {
         return Ok(());
@@ -515,7 +590,16 @@ fn decode_glyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), Error> {
             (x_min, y_min, x_max, y_max) = (0, 0, 0, 0);
             actual_num_contours = num_contours;
         }
-        decode_simple_glyph(actual_num_contours, streams, out, calculate_bounding_box, x_min, y_min, x_max, y_max)?;
+        decode_simple_glyph(
+            actual_num_contours,
+            streams,
+            out,
+            calculate_bounding_box,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+        )?;
     }
 
     Ok(())
