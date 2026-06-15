@@ -29,7 +29,7 @@ fn checks() {
 
         let c_out_file = tempfile::NamedTempFile::new().unwrap();
         let c_out_path = c_out_file.path();
-        std::process::Command::new("/home/kiedtl/src/libeot/eot2ttf")
+        std::process::Command::new("../legacy/libeot/eot2ttf")
             .args(&[inp, &c_out_path.to_string_lossy()])
             .output()
             .unwrap();
