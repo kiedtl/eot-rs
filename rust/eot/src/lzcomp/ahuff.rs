@@ -113,7 +113,7 @@ impl AHUFF {
         let mut symbol = 0i16;
         loop {
             let n = &self.tree[a];
-            let bit = unsafe { bio.input_bit()? };
+            let bit = bio.input_bit()?;
             a = if bit != 0 { n.right } else { n.left };
             symbol = self.tree[a].code;
             if symbol >= 0 {

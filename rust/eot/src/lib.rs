@@ -12,18 +12,15 @@ pub mod ctf {
     pub mod SFNTContainer;
     pub mod parseCTF;
     pub mod parseTTF;
-} // mod ctf
-// pub mod eot2ttf;
+}
 pub mod libeot;
-pub mod lzcomp {
+
+pub mod writeFontFile;
+
+mod stream;
+mod triplet_encodings;
+mod lzcomp {
     pub mod ahuff;
     pub mod bitio;
-    pub mod liblzcomp;
     pub mod lzcomp;
-} // mod lzcomp
-pub mod triplet_encodings;
-pub mod util {
-    pub mod stream;
-    pub mod stream2;
-} // mod util
-pub mod writeFontFile;
+}

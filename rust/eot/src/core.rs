@@ -1,20 +1,3 @@
-extern "C" {
-    fn malloc(__size: size_t) -> *mut ::core::ffi::c_void;
-    fn free(__ptr: *mut ::core::ffi::c_void);
-    fn memcpy(
-        __dest: *mut ::core::ffi::c_void,
-        __src: *const ::core::ffi::c_void,
-        __n: size_t,
-    ) -> *mut ::core::ffi::c_void;
-}
-
-pub type __uint8_t = u8;
-pub type __uint16_t = u16;
-pub type __uint32_t = u32;
-pub type uint8_t = __uint8_t;
-pub type uint16_t = __uint16_t;
-pub type uint32_t = __uint32_t;
-pub type size_t = usize;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
@@ -46,8 +29,8 @@ pub enum Error {
     INSUFFICIENT_BYTES = 1,
 }
 
-impl From<crate::util::stream2::Error> for Error {
-    fn from(_: crate::util::stream2::Error) -> Error {
+impl From<crate::stream::Error> for Error {
+    fn from(_: crate::stream::Error) -> Error {
         Error::LOGIC_ERROR
     }
 }
@@ -55,16 +38,16 @@ impl From<crate::util::stream2::Error> for Error {
 #[derive(Clone)]
 #[repr(C)]
 pub struct EOTRootStringInfo {
-    pub rootStringSize: uint16_t,
-    pub rootString: *mut uint16_t,
+    pub rootStringSize: u16,
+    pub rootString: *mut u16,
 }
 
 #[derive(Clone)]
 #[repr(C)]
 pub struct EUDCInfo {
     pub exists: bool,
-    pub codePage: uint32_t,
-    pub flags: uint32_t,
+    pub codePage: u32,
+    pub flags: u32,
     pub fontData: Vec<u8>,
 }
 
@@ -99,43 +82,24 @@ pub const ANSI_CHARSET: EOTCharset = 0;
 pub struct EOTMetadata {
     pub totalSize: u32,
     pub version: EOTVersion,
-    pub flags: uint32_t,
-    pub panose: [uint8_t; 10],
+    pub flags: u32,
+    pub panose: [u8; 10],
     pub charset: EOTCharset,
     pub italic: bool,
-    pub weight: uint32_t,
-    pub permissions: uint16_t,
-    pub unicodeRange: [uint32_t; 4],
-    pub codePageRange: [uint32_t; 2],
-    pub checkSumAdjustment: uint32_t,
-    pub familyName: Vec<uint16_t>,
-    pub styleName: Vec<uint16_t>,
-    pub versionName: Vec<uint16_t>,
-    pub fullName: Vec<uint16_t>,
+    pub weight: u32,
+    pub permissions: u16,
+    pub unicodeRange: [u32; 4],
+    pub codePageRange: [u32; 2],
+    pub checkSumAdjustment: u32,
+    pub familyName: Vec<u16>,
+    pub styleName: Vec<u16>,
+    pub versionName: Vec<u16>,
+    pub fullName: Vec<u16>,
     pub numRootStrings: ::core::ffi::c_uint,
-    pub rootStrings: *mut EOTRootStringInfo,
     pub fontDataSize: u32,
     pub fontDataOffset: u32,
     pub eudcInfo: EUDCInfo,
-    pub do_not_use: Vec<uint16_t>,
-}
-
-impl Drop for EOTMetadata {
-    fn drop(&mut self) {
-        unsafe {
-            if !(*self).rootStrings.is_null() {
-                let mut i: ::core::ffi::c_uint = 0 as ::core::ffi::c_uint;
-                while i < (*self).numRootStrings {
-                    free(
-                        (*(*self).rootStrings.offset(i as isize)).rootString
-                            as *mut ::core::ffi::c_void,
-                    );
-                    i = i.wrapping_add(1);
-                }
-                free((*self).rootStrings as *mut ::core::ffi::c_void);
-            }
-        }
-    }
+    pub do_not_use: Vec<u16>,
 }
 
 impl EOTMetadata {
@@ -157,7 +121,6 @@ impl EOTMetadata {
         fullName: Vec::new(),
         do_not_use: Vec::new(),
         numRootStrings: 0,
-        rootStrings: ::core::ptr::null_mut::<EOTRootStringInfo>(),
         fontDataSize: 0,
         fontDataOffset: 0,
         eudcInfo: EUDCInfo {

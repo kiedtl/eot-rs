@@ -327,14 +327,4 @@ impl Stream {
 
         Ok(out)
     }
-
-    pub unsafe fn to_legacy(&mut self) -> crate::util::stream::Stream {
-        crate::util::stream::Stream {
-            buf: self.buf.as_mut_ptr(),
-            size: self.buf.len() as u32,
-            reserved: self.buf.capacity() as u32,
-            pos: self.pos as u32,
-            bitPos: self.bit_pos as u32,
-        }
-    }
 }

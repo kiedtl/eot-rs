@@ -36,7 +36,7 @@ fn read_metadata_length(c: &mut Cursor<&[u8]>) -> Result<(u32, u32, u32), Error>
     }
 }
 
-fn read_u16_array(c: &mut Cursor<&[u8]>) -> Result<Vec<uint16_t>, Error> {
+fn read_u16_array(c: &mut Cursor<&[u8]>) -> Result<Vec<u16>, Error> {
     let size = read_u16_le2(c)? as usize;
 
     if size % 2 != 0 {
@@ -151,8 +151,8 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
 
     loop {
         let mut met = EOTMetadata::ZERO;
-        met.totalSize = total_size as uint32_t;
-        met.fontDataSize = font_data_size as uint32_t;
+        met.totalSize = total_size as u32;
+        met.fontDataSize = font_data_size as u32;
         let pos = c.position() as usize;
 
         if bytes.len() < met.fontDataSize as usize + pos {

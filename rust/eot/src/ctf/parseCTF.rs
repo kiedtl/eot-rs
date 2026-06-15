@@ -1,13 +1,12 @@
-use ::core::mem::size_of;
+use core::mem::size_of;
 
 use crate::triplet_encodings::*;
 use crate::core::*;
 use crate::ctf::SFNTContainer::*;
-use crate::util::stream2::{Error as Stream2Error, Stream as Stream2};
+use crate::stream::{Error as StreamError, Stream};
 use crate::ctf::parseTTF::*;
 
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub struct SFNTOffsetTable {
     pub scalarType: u32,
     pub numTables: u16,
@@ -20,7 +19,7 @@ pub type _dpi_TypeRead = ::core::ffi::c_uint;
 pub const SHORT: _dpi_TypeRead = 1;
 pub const BYTE: _dpi_TypeRead = 0;
 
-fn parseOffsetTable(s: &mut Stream2) -> Result<SFNTOffsetTable, Stream2Error> {
+fn parseOffsetTable(s: &mut Stream) -> Result<SFNTOffsetTable, StreamError> {
     let scalarType = s.be_read_u32()?;
     let numTables = s.be_read_u16()?;
     let searchRange = s.be_read_u16()?;
@@ -29,7 +28,7 @@ fn parseOffsetTable(s: &mut Stream2) -> Result<SFNTOffsetTable, Stream2Error> {
     Ok(SFNTOffsetTable { scalarType, numTables, searchRange, entrySelector, rangeShift })
 }
 
-fn _ucvt_rdVal(s_in: &mut Stream2, lastValue: &mut i16) -> Result<(), Stream2Error> {
+fn _ucvt_rdVal(s_in: &mut Stream, lastValue: &mut i16) -> Result<(), StreamError> {
     let code = s_in.be_read_u8()?;
     let mut b2 = 0u8;
     let mut val = 0i16;
@@ -54,22 +53,22 @@ fn _ucvt_rdVal(s_in: &mut Stream2, lastValue: &mut i16) -> Result<(), Stream2Err
     Ok(())
 }
 
-pub fn unpackCVT(mut out: &mut SFNTTable, s_in: &mut Stream2) -> Result<(), Error> {
+pub fn unpackCVT(mut out: &mut SFNTTable, s_in: &mut Stream) -> Result<(), Error> {
     s_in.seek_absolute(out.offset as _).map_err(|_| Error::CORRUPT_FILE)?;
     let tableLength = s_in.be_read_u16().map_err(|_| Error::CORRUPT_FILE)?;
-    let mut s_out = Stream2::new2(0, tableLength as usize * 2);
+    let mut s_out = Stream::new2(0, tableLength as usize * 2);
     let mut lastValue = 0i16;
     for _ in 0..tableLength {
         _ucvt_rdVal(s_in, &mut lastValue).map_err(|_| Error::CORRUPT_FILE)?;
         s_out.be_write_i16(lastValue).map_err(|_| Error::LOGIC_ERROR)?;
     }
-    let Stream2 { buf: s_out_buf, .. } = s_out;
+    let Stream { buf: s_out_buf, .. } = s_out;
     out.buf = s_out_buf.into_boxed_slice();
     Ok(())
 }
 
 // http://www.w3.org/Submission/MTX/#id_255USHORT
-fn read255UShort2(s_in: &mut Stream2) -> Result<u16, Stream2Error> {
+fn read255UShort2(s_in: &mut Stream) -> Result<u16, StreamError> {
     Ok(match s_in.be_read_u8()? {
         253 => s_in.be_read_u16()?,
         255 => 253 + s_in.be_read_u8()? as u16,
@@ -79,7 +78,7 @@ fn read255UShort2(s_in: &mut Stream2) -> Result<u16, Stream2Error> {
 }
 
 // http://www.w3.org/Submission/MTX/#id_255SHORT
-fn read255Short2(sIn: &mut Stream2) -> Result<i16, Stream2Error> {
+fn read255Short2(sIn: &mut Stream) -> Result<i16, StreamError> {
     let mut code: u8 = sIn.be_read_u8()?;
     if code == 253 {
         return sIn.be_read_i16();
@@ -101,12 +100,12 @@ fn read255Short2(sIn: &mut Stream2) -> Result<i16, Stream2Error> {
 }
 
 fn _dpi_dump2(
-    out: &mut Stream2,
+    out: &mut Stream,
     lastRead: &mut _dpi_TypeRead,
     typeLastReadCount: &mut u32,
     data: &mut Vec<i16>,
     dataIndex: &mut u32,
-) -> Result<(), Stream2Error> {
+) -> Result<(), StreamError> {
     if *typeLastReadCount > 0 {
         if *typeLastReadCount < 8 {
             let op: u8 = (if *lastRead == BYTE { PUSHB } else { PUSHW }) as u8
@@ -130,19 +129,19 @@ fn _dpi_dump2(
     Ok(())
 }
 
-pub const NPUSHB: ::core::ffi::c_int = 0x40 as ::core::ffi::c_int;
-pub const NPUSHW: ::core::ffi::c_int = 0x41 as ::core::ffi::c_int;
-pub const PUSHB: ::core::ffi::c_int = 0xb0 as ::core::ffi::c_int;
-pub const PUSHW: ::core::ffi::c_int = 0xb8 as ::core::ffi::c_int;
+const NPUSHB: i32 = 0x40;
+const NPUSHW: i32 = 0x41;
+const PUSHB: i32 = 0xb0;
+const PUSHW: i32 = 0xb8;
 
 fn _dpi_put2(
     value: i16,
-    out: &mut Stream2,
+    out: &mut Stream,
     lastRead: &mut _dpi_TypeRead,
     typeLastReadCount: &mut u32,
     data: &mut Vec<i16>,
     dataIndex: &mut u32,
-) -> Result<(), Stream2Error> {
+) -> Result<(), StreamError> {
     let newType = if value >= 0 && value < 256 { BYTE } else { SHORT };
     if newType != *lastRead || *typeLastReadCount == 255 {
         _dpi_dump2(out, lastRead, typeLastReadCount, data, dataIndex)?;
@@ -157,7 +156,7 @@ fn _dpi_put2(
 }
 
 // http://www.w3.org/Submission/MTX/#HopCodes
-pub fn decodePushInstructions2(sIn: &mut Stream2, sOut: &mut Stream2, pushCount: u32) -> Result<(), Error> {
+fn decodePushInstructions(sIn: &mut Stream, sOut: &mut Stream, pushCount: u32) -> Result<(), Error> {
     let mut remaining = pushCount;
     let mut typeLastRead: _dpi_TypeRead = BYTE;
     let mut typeLastReadCount = 0u32;
@@ -224,53 +223,41 @@ pub fn decodePushInstructions2(sIn: &mut Stream2, sOut: &mut Stream2, pushCount:
     Ok(())
 }
 
-fn _dsg_makeFlags(
-    mut x: i16,
-    mut y: i16,
-    mut onCurve: bool,
-    mut firstTime: bool,
-) -> u8 {
-    let FLG_ON_CURVE: u8 = 0x1 as u8;
-    let FLG_X_SHORT: u8 = 0x2 as u8;
-    let FLG_Y_SHORT: u8 = 0x4 as u8;
-    let FLG_X_SAME: u8 = 0x10 as u8;
-    let FLG_Y_SAME: u8 = 0x20 as u8;
+fn _dsg_makeFlags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
+    const FLG_ON_CURVE: u8 = 0x1;
+    const FLG_X_SHORT: u8 = 0x2;
+    const FLG_Y_SHORT: u8 = 0x4;
+    const FLG_X_SAME: u8 = 0x10;
+    const FLG_Y_SAME: u8 = 0x20;
+
     let mut ret: u8 = 0 as u8;
     if onCurve {
-        ret = (ret as ::core::ffi::c_int | FLG_ON_CURVE as ::core::ffi::c_int)
-            as u8;
+        ret |= FLG_ON_CURVE;
     }
-    if !firstTime && x as ::core::ffi::c_int == 0 as ::core::ffi::c_int {
-        ret = (ret as ::core::ffi::c_int | FLG_X_SAME as ::core::ffi::c_int) as u8;
-    } else if -(256 as ::core::ffi::c_int) < x as ::core::ffi::c_int
-        && (x as ::core::ffi::c_int) < 0 as ::core::ffi::c_int
-    {
-        ret = (ret as ::core::ffi::c_int | FLG_X_SHORT as ::core::ffi::c_int) as u8;
-    } else if 0 as ::core::ffi::c_int <= x as ::core::ffi::c_int
-        && (x as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
-    {
-        ret = (ret as ::core::ffi::c_int | FLG_X_SHORT as ::core::ffi::c_int) as u8;
-        ret = (ret as ::core::ffi::c_int | FLG_X_SAME as ::core::ffi::c_int) as u8;
+
+    if !firstTime && x == 0 {
+        ret |= FLG_X_SAME;
+    } else if -256 < x && x < 0 {
+        ret |= FLG_X_SHORT;
+    } else if 0 <= x && x < 256 {
+        ret |= FLG_X_SHORT | FLG_X_SAME;
     }
-    if !firstTime && y as ::core::ffi::c_int == 0 as ::core::ffi::c_int {
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SAME as ::core::ffi::c_int) as u8;
-    } else if -(256 as ::core::ffi::c_int) < y as ::core::ffi::c_int
-        && (y as ::core::ffi::c_int) < 0 as ::core::ffi::c_int
-    {
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SHORT as ::core::ffi::c_int) as u8;
-    } else if 0 as ::core::ffi::c_int <= y as ::core::ffi::c_int
-        && (y as ::core::ffi::c_int) < 256 as ::core::ffi::c_int
-    {
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SHORT as ::core::ffi::c_int) as u8;
-        ret = (ret as ::core::ffi::c_int | FLG_Y_SAME as ::core::ffi::c_int) as u8;
+
+    if !firstTime && y == 0 {
+        ret |= FLG_Y_SAME;
+    } else if -256 < y && y < 0 {
+        ret |= FLG_Y_SHORT;
+    } else if 0 <= y && y < 256 {
+        ret |= FLG_Y_SHORT | FLG_Y_SAME;
     }
-    return ret;
+
+    ret
 }
 
 fn decodeSimpleGlyph(
     numContours: i16,
-    streams: &mut [Stream2],
-    out: &mut Stream2,
+    streams: &mut [Stream],
+    out: &mut Stream,
     calculateBoundingBox: bool,
     mut minX: i16,
     mut minY: i16,
@@ -343,7 +330,7 @@ fn decodeSimpleGlyph(
         }
 
         // FIXME: stupid copying, probably don't even need a stream for this.
-        let mut coords = Stream2::new(0);
+        let mut coords = Stream::new(0);
         coords.buf = (&streams[0].buf[streams[0].pos..streams[0].pos + moreBytes]).into();
 
         let dx: u32 = coords.read_n_bits(enc.xBits)?; // logic error
@@ -375,7 +362,7 @@ fn decodeSimpleGlyph(
     // decode the push instructions for the glyph
     let pushCount = read255UShort2(&mut streams[0])
         .map_err(|_| Error::CORRUPT_FILE)? as u16;
-    decodePushInstructions2(&mut streams[1], out, pushCount as _)?;
+    decodePushInstructions(&mut streams[1], out, pushCount as _)?;
     let codeSize = read255UShort2(&mut streams[0])
         .map_err(|_| Error::CORRUPT_FILE)?;
 
@@ -457,7 +444,7 @@ fn decodeSimpleGlyph(
     Ok(())
 }
 
-fn decodeCompositeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<(), Error> {
+fn decodeCompositeGlyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), Error> {
     // we don't need to interpret very much here, just the flags to know how much to pass along
     // into the output.
     const FLG_ARGS_WORDS: u16 = 0x1;
@@ -544,7 +531,7 @@ fn decodeCompositeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<()
         // decode the push instructions for the glyph
         let pushCount = read255UShort2(&mut streams[0])
             .map_err(|_| Error::CORRUPT_FILE)? as u16;
-        decodePushInstructions2(&mut streams[1], out, pushCount as _)?;
+        decodePushInstructions(&mut streams[1], out, pushCount as _)?;
 
         // copy over the rest of the instructions for the glyph
         let code_size = read255UShort2(&mut streams[0])
@@ -572,7 +559,7 @@ fn decodeCompositeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<()
     Ok(())
 }
 
-pub fn decodeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<(), Error> {
+fn decodeGlyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), Error> {
     let mut in_0 = &mut streams[0];
     let mut calculateBoundingBox: bool = false;
 
@@ -601,13 +588,13 @@ pub fn decodeGlyph(streams: &mut [Stream2], out: &mut Stream2) -> Result<(), Err
 
 // https://developer.apple.com/fonts/TTRefMan/RM06/Chap6glyf.html
 // http://www.w3.org/Submission/MTX/#CTFGlyph
-pub fn populateGlyfAndLoca(
+fn populateGlyfAndLoca(
     tables: &mut [SFNTTable],
     glyf: usize,
     loca: usize,
     headData: &mut TTFheadData,
     maxpData: &mut TTFmaxpData,
-    streams: &mut [Stream2],
+    streams: &mut [Stream],
 ) -> Result<(), Error> {
     let mut sctf = &mut streams[0];
     sctf.seek_absolute(tables[glyf].offset as _)?;
@@ -626,8 +613,8 @@ pub fn populateGlyfAndLoca(
     let maxTableSize = (maxpData.numGlyphs as u32) * maxGlyphSize;
     let is_short_loca = headData.indexToLocFormat == 0;
 
-    let mut s_out = Stream2::new2(0, maxTableSize as _);
-    let mut s_loca_out = Stream2::new2(0, 0);
+    let mut s_out = Stream::new2(0, maxTableSize as _);
+    let mut s_loca_out = Stream::new2(0, 0);
 
     if is_short_loca {
         s_loca_out.buf.reserve(2 * (maxpData.numGlyphs + 1) as usize);
@@ -672,7 +659,7 @@ pub fn populateGlyfAndLoca(
     Ok(())
 }
 
-pub fn parseCTF(streams: &mut [Stream2]) -> Result<SFNTContainer, Error> {
+pub fn parseCTF(streams: &mut [Stream]) -> Result<SFNTContainer, Error> {
     let offsetTable = parseOffsetTable(&mut streams[0])
         .map_err(|_| Error::CORRUPT_FILE)?;
     let mut out = SFNTContainer::new(offsetTable.numTables as usize);
@@ -685,7 +672,7 @@ pub fn parseCTF(streams: &mut [Stream2]) -> Result<SFNTContainer, Error> {
 
         if &tag == b"hdmx" || &tag == b"VDMX" {
             streams[0].seek_relative(12).map_err(|_| Error::CORRUPT_FILE)?;
-            eprintln!("Ignoring hdmx/VDMX table -- will be fixed in a future release.\n");
+            //eprintln!("Ignoring hdmx/VDMX table -- will be fixed in a future release.\n");
         } else {
             let tag = [tag[0] as _, tag[1] as _, tag[2] as _, tag[3] as _];
             let tbl = out.add_table(&tag);
