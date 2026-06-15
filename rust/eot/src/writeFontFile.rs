@@ -1,7 +1,4 @@
-use crate::core::Error;
-use crate::lzcomp::lzcomp::unpackMtx;
-use crate::stream::Stream;
-use crate::ctf::parseCTF::parseCTF;
+use crate::{core::Error, ctf::parseCTF::parseCTF, lzcomp::lzcomp::unpackMtx, stream::Stream};
 
 const ENCRYPTION_KEY: u8 = 0x50;
 
@@ -21,11 +18,7 @@ pub fn writeFontBuffer(data: &[u8], compressed: bool, encrypted: bool) -> Result
         sBuf.buf = buf;
         let ctfs = unpackMtx(&mut sBuf, len as _)?;
 
-        let mut streams: [Stream; 3] = [
-            Stream::new2(0, 0),
-            Stream::new2(0, 0),
-            Stream::new2(0, 0),
-        ];
+        let mut streams: [Stream; 3] = [Stream::new2(0, 0), Stream::new2(0, 0), Stream::new2(0, 0)];
         for (stream, ctf) in streams.iter_mut().zip(ctfs.into_iter()) {
             stream.buf = ctf;
         }

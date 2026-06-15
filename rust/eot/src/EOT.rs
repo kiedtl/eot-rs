@@ -1,4 +1,5 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
+
 use byteorder::{LE, ReadBytesExt};
 
 use crate::core::*;
@@ -62,7 +63,9 @@ fn read_byte_array(c: &mut Cursor<&[u8]>) -> Result<Vec<u8>, Error> {
     Ok(buf)
 }
 
-fn read_metadata_with_version(c: &mut Cursor<&[u8]>, meta: &mut EOTMetadata, version: EOTVersion) -> Result<(), Error> {
+fn read_metadata_with_version(
+    c: &mut Cursor<&[u8]>, meta: &mut EOTMetadata, version: EOTVersion,
+) -> Result<(), Error> {
     meta.version = version;
 
     meta.flags = read_u32_le2(c)?;
@@ -160,13 +163,12 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
         }
 
         match read_metadata_with_version(&mut c, &mut met, tryVersion) {
-            Ok(()) => {
+            Ok(()) =>
                 if tryVersion == coded_version {
                     return Ok(met);
                 } else {
                     return Err(Error::WARN_BAD_VERSION);
-                }
-            },
+                },
             Err(Error::HEADER_TOO_BIG) => {
                 if knockedDown || tryVersion == VERSION_3 {
                     return Err(Error::CORRUPT_FILE);
@@ -174,7 +176,7 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
                 knockedDown = false;
                 bumpedUp = true;
                 tryVersion += 1;
-            },
+            }
             Err(Error::INSUFFICIENT_BYTES) => {
                 if bumpedUp || tryVersion == VERSION_1 {
                     return Err(Error::CORRUPT_FILE);
@@ -182,10 +184,10 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
                 knockedDown = true;
                 bumpedUp = false;
                 tryVersion -= 1;
-            },
+            }
             Err(e) => return Err(e),
         }
-    };
+    }
 }
 
 /// Please think twice before circumventing this function. Does your personal sense of morality

@@ -28,7 +28,7 @@ impl BITIO<'_> {
         Ok(value)
     }
 
-    /* Read one bit from the input memory */
+    // Read one bit from the input memory
     pub fn input_bit(&mut self) -> Result<u16, Error> {
         let input_bit_count = self.input_bit_count;
         self.input_bit_count = self.input_bit_count.wrapping_sub(1);

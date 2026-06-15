@@ -1,4 +1,3 @@
-
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
 pub enum Error {
@@ -45,9 +44,9 @@ pub struct EOTRootStringInfo {
 #[derive(Clone)]
 #[repr(C)]
 pub struct EUDCInfo {
-    pub exists: bool,
+    pub exists:   bool,
     pub codePage: u32,
-    pub flags: u32,
+    pub flags:    u32,
     pub fontData: Vec<u8>,
 }
 
@@ -124,9 +123,9 @@ impl EOTMetadata {
         fontDataSize: 0,
         fontDataOffset: 0,
         eudcInfo: EUDCInfo {
-            exists: false,
+            exists:   false,
             codePage: 0,
-            flags: 0,
+            flags:    0,
             fontData: Vec::new(),
         },
     };

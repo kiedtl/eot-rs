@@ -1,5 +1,4 @@
-use crate::core::Error;
-use crate::lzcomp::bitio::*;
+use crate::{core::Error, lzcomp::bitio::*};
 
 #[derive(Copy, Clone)]
 struct Node {
@@ -11,7 +10,13 @@ struct Node {
 }
 
 impl Node {
-    const ZEROED: Node = Node { up: 0, left: 0, right: 0, code: 0, weight: 0 };
+    const ZEROED: Node = Node {
+        up: 0,
+        left: 0,
+        right: 0,
+        code: 0,
+        weight: 0,
+    };
 }
 
 const ROOT: usize = 1;
@@ -45,9 +50,9 @@ impl AHUFF {
     pub fn new(mut rangeIn: i16) -> AHUFF {
         let mut t = AHUFF::PLACEHOLDER;
 
-        let range =  rangeIn;
+        let range = rangeIn;
         t.range = rangeIn as i64;
-        t.bitCount = bits_used((rangeIn - 1 ) as _);
+        t.bitCount = bits_used((rangeIn - 1) as _);
         t.bitCount2 = 0_i64;
         if rangeIn > 256 && rangeIn < 512 {
             rangeIn -= 256;
@@ -60,14 +65,14 @@ impl AHUFF {
         t.symbolIndex.resize(range as _, 0);
         t.tree.resize(2 * range as usize, Node::ZEROED);
 
-        /* Initialize the Huffman tree */
+        // Initialize the Huffman tree
         let limit = 2 * range as usize;
         for i in 2..limit {
             t.tree[i].up = i / 2;
             t.tree[i].weight = 1;
         }
         for i in 1..(range as usize) {
-            t.tree[i].left = 2 * i ;
+            t.tree[i].left = 2 * i;
             t.tree[i].right = 2 * i + 1;
         }
         for i in 0..(range as usize) {
@@ -124,7 +129,7 @@ impl AHUFF {
         Ok(symbol)
     }
 
-    /* Swaps the nodes a and b */
+    // Swaps the nodes a and b
     fn swap_nodes(&mut self, a: usize, b: usize) {
         assert!(a != b);
         assert!(a > ROOT);
@@ -149,7 +154,7 @@ impl AHUFF {
 
         let code = self.tree[a].code;
         if code < 0 {
-            /* Internal nodes have children */
+            // Internal nodes have children
             let left = self.tree[a].left;
             let right = self.tree[a].right;
             self.tree[left].up = a;
@@ -161,13 +166,13 @@ impl AHUFF {
 
         let code = self.tree[b].code;
         if code < 0 {
-            /* Internal nodes have children */
+            // Internal nodes have children
             let left = self.tree[b].left;
             let right = self.tree[b].right;
             self.tree[left].up = b;
             self.tree[right].up = b;
         } else {
-            //assert(code < self->range);
+            // assert(code < self->range);
             self.symbolIndex[code as usize] = b;
         }
 
@@ -179,7 +184,7 @@ impl AHUFF {
         while a != ROOT {
             let mut weightA = self.tree[a].weight;
             let mut b = a - 1;
-            /* This if statement prevents sibling rule violations */
+            // This if statement prevents sibling rule violations
             assert!(self.tree[b].weight >= weightA);
             if self.tree[b].weight == weightA {
                 loop {
@@ -189,7 +194,7 @@ impl AHUFF {
                     }
                 }
                 b += 1;
-                //assert(b >= ROOT);
+                // assert(b >= ROOT);
                 if b > ROOT {
                     self.swap_nodes(a, b);
                     a = b;
@@ -205,17 +210,16 @@ impl AHUFF {
             self.tree[a].weight,
             self.tree[self.tree[a].left].weight + self.tree[self.tree[a].right].weight
         );
-        /*check_tree(); slooow */
+        // check_tree(); slooow
     }
 
-    /* Recursively sets the parent weight equal to the sum of the two chilren's
-     * weights. */
+    // Recursively sets the parent weight equal to the sum of the two chilren's
+    // weights.
     fn init_weight(&mut self, a: usize) -> i64 {
         if self.tree[a].code < 0 {
-            /* Internal node */
+            // Internal node
             self.tree[a].weight =
-                self.init_weight(self.tree[a].left as _) +
-                self.init_weight(self.tree[a].right as _);
+                self.init_weight(self.tree[a].left as _) + self.init_weight(self.tree[a].right as _);
         }
         self.tree[a].weight
     }
@@ -224,7 +228,8 @@ impl AHUFF {
 // Returns number of bits used in the positive number x
 fn bits_used(x: i64) -> i64 {
     assert!(x >= 0);
-    if x == 0 { // Deliberate
+    if x == 0 {
+        // Deliberate
         return 1;
     }
     (32 - (x as u32).leading_zeros()) as _

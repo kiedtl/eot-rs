@@ -1,5 +1,5 @@
-pub mod core;
 pub mod EOT;
+pub mod core;
 pub mod ctf {
     pub mod SFNTContainer;
     pub mod parseCTF;

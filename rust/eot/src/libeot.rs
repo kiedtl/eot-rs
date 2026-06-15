@@ -1,6 +1,5 @@
 pub use crate::core::*;
-use crate::EOT;
-use crate::writeFontFile;
+use crate::{EOT, writeFontFile};
 
 // pub const EOT_WARN: ::core::ffi::c_int = 1000 as ::core::ffi::c_int;
 pub const TTEMBED_TTCOMPRESSED: ::core::ffi::c_int = 0x4 as ::core::ffi::c_int;
@@ -39,15 +38,15 @@ pub const TTEMBED_XORENCRYPTDATA: ::core::ffi::c_int = 0x10000000 as ::core::ffi
 //         }
 //         10 => {
 //             fputs(
-//                 b"MTX Compression has not yet been implemented in this version of libeot. The font could therefore not be converted.\n\0"
-//                     as *const u8 as *const ::core::ffi::c_char,
-//                 out,
+//                 b"MTX Compression has not yet been implemented in this version of libeot. The
+// font could therefore not be converted.\n\0"                     as *const u8 as *const
+// ::core::ffi::c_char,                 out,
 //             );
 //         }
 //         _ => {
 //             fputs(
-//                 b"Unknown error: this is a bug in libeot; it does not *necessarily* indicate a corrupted font file.\n\0"
-//                     as *const u8 as *const ::core::ffi::c_char,
+//                 b"Unknown error: this is a bug in libeot; it does not *necessarily* indicate a
+// corrupted font file.\n\0"                     as *const u8 as *const ::core::ffi::c_char,
 //                 out,
 //             );
 //         }

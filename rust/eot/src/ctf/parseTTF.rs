@@ -1,7 +1,8 @@
 use std::io::Cursor;
+
 use byteorder::{BE, ReadBytesExt};
-use crate::core::*;
-use crate::ctf::SFNTContainer::SFNTTable;
+
+use crate::{core::*, ctf::SFNTContainer::SFNTTable};
 
 #[derive(Copy, Clone)]
 pub struct TTFheadData {
@@ -40,9 +41,7 @@ pub fn TTFParseMaxp(tbl: &SFNTTable) -> Result<TTFmaxpData, Error> {
     let mut c = Cursor::new(&tbl.buf);
     let version = c.read_u32::<BE>().map_err(|_| Error::CORRUPT_FILE)?;
 
-    let mut ru16 = || -> Result<u16, Error> {
-        c.read_u16::<BE>().map_err(|_| Error::CORRUPT_FILE)
-    };
+    let mut ru16 = || -> Result<u16, Error> { c.read_u16::<BE>().map_err(|_| Error::CORRUPT_FILE) };
 
     out.numGlyphs = ru16()?;
     if version == 0x00010000 {

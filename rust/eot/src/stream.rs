@@ -89,11 +89,7 @@ impl Stream {
 
         let opos = self.pos;
         self.pos += 3;
-        Ok(
-            (self.buf[opos] as u32) << 16 |
-            (self.buf[opos + 1] as u32) << 8 |
-            self.buf[opos + 2] as u32
-        )
+        Ok((self.buf[opos] as u32) << 16 | (self.buf[opos + 1] as u32) << 8 | self.buf[opos + 2] as u32)
     }
 
     pub fn be_read_u32(&mut self) -> Result<u32, Error> {
@@ -105,12 +101,10 @@ impl Stream {
 
         let opos = self.pos;
         self.pos += 4;
-        Ok(
-                (self.buf[opos] as u32) << 24 |
-                (self.buf[opos + 1] as u32) << 16 |
-                (self.buf[opos + 2] as u32) << 8 |
-                self.buf[opos + 3] as u32
-        )
+        Ok((self.buf[opos] as u32) << 24
+            | (self.buf[opos + 1] as u32) << 16
+            | (self.buf[opos + 2] as u32) << 8
+            | self.buf[opos + 3] as u32)
     }
 
     pub fn be_read_i8(&mut self) -> Result<i8, Error> {
@@ -259,11 +253,7 @@ impl Stream {
             return Err(Error::OUT_OF_RESERVED_SPACE);
         }
 
-        let bytes = [
-            ((val >> 16) & 0xFF) as u8,
-            ((val >> 8) & 0xFF) as u8,
-            (val & 0xFF) as u8
-        ];
+        let bytes = [((val >> 16) & 0xFF) as u8, ((val >> 8) & 0xFF) as u8, (val & 0xFF) as u8];
 
         for byte in bytes {
             if self.pos == self.buf.len() {
@@ -285,12 +275,8 @@ impl Stream {
             return Err(Error::OUT_OF_RESERVED_SPACE);
         }
 
-        let bytes = [
-            (val >> 24) as u8,
-            ((val >> 16) & 0xFF) as u8,
-            ((val >> 8) & 0xFF) as u8,
-            (val & 0xFF) as u8
-        ];
+        let bytes =
+            [(val >> 24) as u8, ((val >> 16) & 0xFF) as u8, ((val >> 8) & 0xFF) as u8, (val & 0xFF) as u8];
 
         for byte in bytes {
             if self.pos == self.buf.len() {

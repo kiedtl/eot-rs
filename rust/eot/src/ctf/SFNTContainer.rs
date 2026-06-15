@@ -1,7 +1,9 @@
-use std::io::{Read, Cursor};
+use std::io::{Cursor, Read};
 
-use crate::core::Error;
-use crate::stream::{Error as StreamError, Stream};
+use crate::{
+    core::Error,
+    stream::{Error as StreamError, Stream},
+};
 
 pub type EOTError = ::core::ffi::c_uint;
 pub const EOT_SUCCESS: EOTError = 0;
@@ -37,7 +39,7 @@ impl SFNTTable {
                 Ok(chunk) => {
                     self.checksum = self.checksum.wrapping_add(chunk);
                     out.be_write_u32(chunk)?;
-                },
+                }
                 Err(StreamError::NOT_ENOUGH_DATA) => break,
                 Err(e) => return Err(e.into()),
             }
@@ -55,7 +57,7 @@ pub struct SFNTContainer {
 impl SFNTContainer {
     pub fn new(cap: usize) -> Self {
         Self {
-            tables: Vec::with_capacity(cap)
+            tables: Vec::with_capacity(cap),
         }
     }
 
@@ -115,7 +117,7 @@ impl SFNTContainer {
             chk = chk.wrapping_add(tbl.checksum);
         }
         let Some(head) = head else {
-            /* should have already caught the lack of a head table! */
+            // should have already caught the lack of a head table!
             return Err(Error::LOGIC_ERROR);
         };
 
@@ -129,7 +131,7 @@ impl SFNTContainer {
         // this mystical number 0xB1B0AFBA is defined by the TTF standard, dunno why they picked this
         // value.
         let finalChecksum = 0xb1b0afbau32.wrapping_sub(chk);
-        s.seek_absolute(self.tables[head].offset + 8  )?;
+        s.seek_absolute(self.tables[head].offset + 8)?;
         s.be_write_u32(finalChecksum)?;
 
         Ok(s.buf)
@@ -158,7 +160,8 @@ fn be_read_rest_as_u32(cursor: &mut Cursor<&Box<[u8]>>) -> Result<u32, StreamErr
 
     let remaining = len - pos;
     let mut buf = [0u8; 4];
-    cursor.read_exact(&mut buf[..remaining.min(4)])
+    cursor
+        .read_exact(&mut buf[..remaining.min(4)])
         .map_err(|_| StreamError::NOT_ENOUGH_DATA)?;
 
     Ok(match remaining {
@@ -169,7 +172,7 @@ fn be_read_rest_as_u32(cursor: &mut Cursor<&Box<[u8]>>) -> Result<u32, StreamErr
     })
 }
 
-/* log_2(largest power of 2 <= n) */
+// log_2(largest power of 2 <= n)
 fn _lgflr(mut n: u32) -> u32 {
     let mut ret = 0u32;
     while n > 1 {
@@ -179,7 +182,7 @@ fn _lgflr(mut n: u32) -> u32 {
     ret
 }
 
-/* largest power of 2 <= n */
+// largest power of 2 <= n
 fn _maxpw(mut n: u32) -> u32 {
     let mut ret = 1u32;
     while n > 1 {
