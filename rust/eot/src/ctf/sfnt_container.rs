@@ -5,18 +5,15 @@ use crate::{
     stream::{Error as StreamError, Stream},
 };
 
-pub type EOTError = ::core::ffi::c_uint;
-pub const EOT_SUCCESS: EOTError = 0;
-
 #[derive(Clone)]
-pub struct SFNTTable {
+pub struct SfntTable {
     pub tag: [u8; 4],
     pub buf: Box<[u8]>,
     pub offset: usize,
     pub checksum: u32,
 }
 
-impl SFNTTable {
+impl SfntTable {
     pub fn new(tag: &[u8; 4]) -> Self {
         Self {
             tag: *tag,
@@ -27,7 +24,7 @@ impl SFNTTable {
     }
 }
 
-impl SFNTTable {
+impl SfntTable {
     fn set_and_write_checksum(&mut self, out: &mut Stream) -> Result<(), Error> {
         self.checksum = 0;
         self.offset = out.pos;
@@ -50,25 +47,25 @@ impl SFNTTable {
 }
 
 #[derive(Clone)]
-pub struct SFNTContainer {
-    pub tables: Vec<SFNTTable>,
+pub struct SfntContainer {
+    pub tables: Vec<SfntTable>,
 }
 
-impl SFNTContainer {
+impl SfntContainer {
     pub fn new(cap: usize) -> Self {
         Self {
             tables: Vec::with_capacity(cap),
         }
     }
 
-    pub fn add_table(&mut self, tag: &[u8; 4]) -> &mut SFNTTable {
-        self.tables.push(SFNTTable::new(tag));
+    pub fn add_table(&mut self, tag: &[u8; 4]) -> &mut SfntTable {
+        self.tables.push(SfntTable::new(tag));
         let l = self.tables.len() - 1;
         &mut self.tables[l]
     }
 
     pub fn dump_to_vec(&mut self) -> Result<Vec<u8>, Error> {
-        fn _write_table_directory(ctr: &mut SFNTContainer, out: &mut Stream) -> Result<(), Error> {
+        fn _write_table_directory(ctr: &mut SfntContainer, out: &mut Stream) -> Result<(), Error> {
             for i in 0..ctr.tables.len() {
                 let tbl = &mut ctr.tables[i];
 
@@ -83,7 +80,7 @@ impl SFNTContainer {
             Ok(())
         }
 
-        fn _write_offset_table(ctr: &mut SFNTContainer, s: &mut Stream) -> Result<(), Error> {
+        fn _write_offset_table(ctr: &mut SfntContainer, s: &mut Stream) -> Result<(), Error> {
             let scaler_type: u32 = 0x10000_u32;
             let num_tables: u16 = ctr.tables.len() as u16;
             let search_range: u16 = (_maxpw(ctr.tables.len() as u32) * 16) as u16;
@@ -192,7 +189,7 @@ fn _maxpw(mut n: u32) -> u32 {
     ret
 }
 
-pub fn load_table_from_stream(tbl: &mut SFNTTable, s: &mut Stream) -> Result<(), Error> {
+pub fn load_table_from_stream(tbl: &mut SfntTable, s: &mut Stream) -> Result<(), Error> {
     s.seek_absolute(tbl.offset as _).map_err(|_| Error::CORRUPT_FILE)?;
     let end = s.pos + tbl.buf.len();
     if end > s.buf.len() {

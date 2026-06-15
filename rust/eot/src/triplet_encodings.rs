@@ -9,7 +9,7 @@ pub struct TripletEncoding {
     pub y_sign: i32,
 }
 
-pub static tripletEncodings: [TripletEncoding; 128] = [
+pub static TRIPLET_ENCODINGS: [TripletEncoding; 128] = [
     TripletEncoding {
         byte_count: 2,
         x_bits: 0,

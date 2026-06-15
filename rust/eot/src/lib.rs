@@ -6,15 +6,15 @@ mod lzcomp;
 mod stream;
 mod triplet_encodings;
 
-pub mod ctf {
-    pub mod SFNTContainer;
-    pub mod parseCTF;
-    pub mod parseTTF;
+mod ctf {
+    pub(crate) mod sfnt_container;
+    pub(crate) mod ctf_parse;
+    pub(crate) mod ttf_parse;
 }
 
 use core::Error;
 
-use ctf::parseCTF::parse_ctf;
+use ctf::ctf_parse::parse_ctf;
 use metadata::Metadata;
 use stream::Stream;
 

@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use byteorder::{BE, ReadBytesExt};
 
-use crate::{core::*, ctf::SFNTContainer::SFNTTable};
+use crate::{core::*, ctf::sfnt_container::SfntTable};
 
 #[derive(Copy, Clone)]
 pub struct TtfHeadData {
@@ -27,7 +27,7 @@ pub struct TtfMaxpData {
     pub max_component_depth: u16,
 }
 
-pub fn ttf_parse_head(tbl: &SFNTTable) -> Result<TtfHeadData, Error> {
+pub fn ttf_parse_head(tbl: &SfntTable) -> Result<TtfHeadData, Error> {
     if tbl.buf.len() < 52 {
         return Err(Error::CORRUPT_FILE);
     }
@@ -35,7 +35,7 @@ pub fn ttf_parse_head(tbl: &SFNTTable) -> Result<TtfHeadData, Error> {
     Ok(TtfHeadData { index_to_loc_format })
 }
 
-pub fn ttf_parse_maxp(tbl: &SFNTTable) -> Result<TtfMaxpData, Error> {
+pub fn ttf_parse_maxp(tbl: &SfntTable) -> Result<TtfMaxpData, Error> {
     let mut out = TtfMaxpData::default();
 
     let mut c = Cursor::new(&tbl.buf);

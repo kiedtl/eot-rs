@@ -108,20 +108,8 @@ impl Stream {
             | self.buf[opos + 3] as u32)
     }
 
-    pub fn be_read_i8(&mut self) -> Result<i8, Error> {
-        Ok(self.be_read_u8()? as i8)
-    }
-
     pub fn be_read_i16(&mut self) -> Result<i16, Error> {
         Ok(self.be_read_u16()? as i16)
-    }
-
-    pub fn be_read_i24(&mut self) -> Result<i32, Error> {
-        Ok(self.be_read_u24()? as i32)
-    }
-
-    pub fn be_read_i32(&mut self) -> Result<i32, Error> {
-        Ok(self.be_read_u32()? as i32)
     }
 
     pub fn read_n_bits(&mut self, n: u32) -> Result<u32, Error> {
@@ -240,32 +228,6 @@ impl Stream {
             self.pos += 1;
         }
 
-        Ok(())
-    }
-
-    pub fn be_write_u24(&mut self, val: u32) -> Result<(), Error> {
-        self.check_byte_boundary()?;
-
-        if val & 0xff000000 != 0 {
-            return Err(Error::VALUE_OUT_OF_BOUNDS);
-        }
-
-        if self.pos + 3 > self.buf.capacity() {
-            return Err(Error::OUT_OF_RESERVED_SPACE);
-        }
-
-        let bytes = [((val >> 16) & 0xFF) as u8, ((val >> 8) & 0xFF) as u8, (val & 0xFF) as u8];
-
-        for byte in bytes {
-            if self.pos == self.buf.len() {
-                self.buf.push(byte);
-            } else {
-                self.buf[self.pos] = byte;
-            }
-            self.pos += 1;
-        }
-
-        self.pos += 3;
         Ok(())
     }
 

@@ -2,18 +2,18 @@ use core::mem::size_of;
 
 use crate::{
     core::*,
-    ctf::{SFNTContainer::*, parseTTF::*},
+    ctf::{sfnt_container::*, ttf_parse::*},
     stream::{Error as StreamError, Stream},
     triplet_encodings::*,
 };
 
 #[derive(Copy, Clone)]
-pub struct SFNTOffsetTable {
-    pub scalar_type: u32,
-    pub num_tables: u16,
-    pub search_range: u16,
-    pub entry_selector: u16,
-    pub range_shift: u16,
+struct SFNTOffsetTable {
+    // scalar_type: u32,
+    num_tables: u16,
+    // search_range: u16,
+    // entry_selector: u16,
+    // range_shift: u16,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -24,17 +24,17 @@ enum DpiTypeRead {
 }
 
 fn parse_offset_table(s: &mut Stream) -> Result<SFNTOffsetTable, StreamError> {
-    let scalar_type = s.be_read_u32()?;
+    let _scalar_type = s.be_read_u32()?;
     let num_tables = s.be_read_u16()?;
-    let search_range = s.be_read_u16()?;
-    let entry_selector = s.be_read_u16()?;
-    let range_shift = s.be_read_u16()?;
+    let _search_range = s.be_read_u16()?;
+    let _entry_selector = s.be_read_u16()?;
+    let _range_shift = s.be_read_u16()?;
     Ok(SFNTOffsetTable {
-        scalar_type,
+        // scalar_type,
         num_tables,
-        search_range,
-        entry_selector,
-        range_shift,
+        // search_range,
+        // entry_selector,
+        // range_shift,
     })
 }
 
@@ -62,7 +62,7 @@ fn _ucvt_rd_val(s_in: &mut Stream, last_value: &mut i16) -> Result<(), StreamErr
     Ok(())
 }
 
-pub fn unpack_cvt(out: &mut SFNTTable, s_in: &mut Stream) -> Result<(), Error> {
+fn unpack_cvt(out: &mut SfntTable, s_in: &mut Stream) -> Result<(), Error> {
     s_in.seek_absolute(out.offset as _).map_err(|_| Error::CORRUPT_FILE)?;
     let table_length = s_in.be_read_u16().map_err(|_| Error::CORRUPT_FILE)?;
     let mut s_out = Stream::new2(0, table_length as usize * 2);
@@ -380,7 +380,7 @@ fn decode_simple_glyph(
     let mut curr_y = 0u32;
 
     for i in 0..total_points {
-        let enc = tripletEncodings[(flags[i] & 0x7F) as usize];
+        let enc = TRIPLET_ENCODINGS[(flags[i] & 0x7F) as usize];
         let more_bytes = (enc.byte_count - 1) as usize;
 
         if streams[0].pos + more_bytes > streams[0].buf.len() {
@@ -608,7 +608,7 @@ fn decode_glyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), Error> {
 // https://developer.apple.com/fonts/TTRefMan/RM06/Chap6glyf.html
 // http://www.w3.org/Submission/MTX/#CTFGlyph
 fn populate_glyf_and_loca(
-    tables: &mut [SFNTTable], glyf: usize, loca: usize, head_data: &mut TtfHeadData,
+    tables: &mut [SfntTable], glyf: usize, loca: usize, head_data: &mut TtfHeadData,
     maxp_data: &mut TtfMaxpData, streams: &mut [Stream],
 ) -> Result<(), Error> {
     let sctf = &mut streams[0];
@@ -676,9 +676,9 @@ fn populate_glyf_and_loca(
     Ok(())
 }
 
-pub fn parse_ctf(streams: &mut [Stream]) -> Result<SFNTContainer, Error> {
+pub fn parse_ctf(streams: &mut [Stream]) -> Result<SfntContainer, Error> {
     let offset_table = parse_offset_table(&mut streams[0]).map_err(|_| Error::CORRUPT_FILE)?;
-    let mut out = SFNTContainer::new(offset_table.num_tables as usize);
+    let mut out = SfntContainer::new(offset_table.num_tables as usize);
 
     for _ in 0..offset_table.num_tables {
         let mut tag = [0u8; 4];
