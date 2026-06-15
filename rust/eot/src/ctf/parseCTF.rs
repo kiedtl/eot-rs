@@ -16,9 +16,12 @@ pub struct SFNTOffsetTable {
     pub range_shift: u16,
 }
 
-pub type _dpi_TypeRead = ::core::ffi::c_uint;
-pub const SHORT: _dpi_TypeRead = 1;
-pub const BYTE: _dpi_TypeRead = 0;
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[repr(u32)]
+enum DpiTypeRead {
+    Short = 1,
+    Byte = 0,
+}
 
 fn parse_offset_table(s: &mut Stream) -> Result<SFNTOffsetTable, StreamError> {
     let scalar_type = s.be_read_u32()?;
@@ -35,16 +38,15 @@ fn parse_offset_table(s: &mut Stream) -> Result<SFNTOffsetTable, StreamError> {
     })
 }
 
-fn _ucvt_rd_val(s_in: &mut Stream, lastValue: &mut i16) -> Result<(), StreamError> {
+fn _ucvt_rd_val(s_in: &mut Stream, last_value: &mut i16) -> Result<(), StreamError> {
     let code = s_in.be_read_u8()?;
-    let mut b2 = 0u8;
-    let mut val = 0i16;
+    let val: i16;
 
     if code >= 248 {
-        b2 = s_in.be_read_u8()?;
+        let b2 = s_in.be_read_u8()?;
         val = 238 * ((code as i32 - 247_i32) as i16) + b2 as i16;
     } else if code >= 239 {
-        b2 = s_in.be_read_u8()?;
+        let b2 = s_in.be_read_u8()?;
         val = -(238 * (code as i16 - 239) + b2 as i16);
     } else if code == 238 {
         val = s_in.be_read_i16()?;
@@ -54,7 +56,7 @@ fn _ucvt_rd_val(s_in: &mut Stream, lastValue: &mut i16) -> Result<(), StreamErro
 
     // The CVT table in CTF format is set up so that this does the right thing even if it
     // overflows.
-    *lastValue = (*lastValue).wrapping_add(val);
+    *last_value = (*last_value).wrapping_add(val);
     // Unless someone tries to run this code on some horrible system that doesn't use twos
     // complement...
     Ok(())
@@ -85,21 +87,21 @@ fn read_255_ushort(s_in: &mut Stream) -> Result<u16, StreamError> {
 }
 
 // http://www.w3.org/Submission/MTX/#id_255SHORT
-fn read_255_short(sIn: &mut Stream) -> Result<i16, StreamError> {
-    let mut code: u8 = sIn.be_read_u8()?;
+fn read_255_short(s_in: &mut Stream) -> Result<i16, StreamError> {
+    let mut code: u8 = s_in.be_read_u8()?;
     if code == 253 {
-        return sIn.be_read_i16();
+        return s_in.be_read_i16();
     }
 
     let mut sign = 1i16;
     if code == 250 {
         sign = -1;
-        code = sIn.be_read_u8()?;
+        code = s_in.be_read_u8()?;
     }
 
     let out = match code {
-        255 => 250 + sIn.be_read_u8()? as i16,
-        254 => (250 * 2) + sIn.be_read_u8()? as i16,
+        255 => 250 + s_in.be_read_u8()? as i16,
+        254 => (250 * 2) + s_in.be_read_u8()? as i16,
         _ => code as i16,
     };
 
@@ -107,25 +109,25 @@ fn read_255_short(sIn: &mut Stream) -> Result<i16, StreamError> {
 }
 
 fn _dpi_dump2(
-    out: &mut Stream, lastRead: &mut _dpi_TypeRead, typeLastReadCount: &mut u32, data: &mut Vec<i16>,
-    dataIndex: &mut u32,
+    out: &mut Stream, last_read: &mut DpiTypeRead, type_last_read_count: &mut u32, data: &mut Vec<i16>,
+    data_index: &mut u32,
 ) -> Result<(), StreamError> {
-    if *typeLastReadCount > 0 {
-        if *typeLastReadCount < 8 {
-            let op: u8 = (if *lastRead == BYTE { PUSHB } else { PUSHW }) as u8
-                | (*typeLastReadCount).wrapping_sub(1) as u8;
+    if *type_last_read_count > 0 {
+        if *type_last_read_count < 8 {
+            let op: u8 = (if *last_read == DpiTypeRead::Byte { PUSHB } else { PUSHW }) as u8
+                | (*type_last_read_count).wrapping_sub(1) as u8;
             out.be_write_u8(op)?;
         } else {
-            let op: u8 = if *lastRead == BYTE { NPUSHB } else { NPUSHW } as u8;
+            let op: u8 = if *last_read == DpiTypeRead::Byte { NPUSHB } else { NPUSHW } as u8;
             out.be_write_u8(op)?;
-            out.be_write_u8(*typeLastReadCount as u8)?;
+            out.be_write_u8(*type_last_read_count as u8)?;
         }
 
-        for i in 0..*typeLastReadCount {
-            if *lastRead == BYTE {
-                out.be_write_u8(data[(*dataIndex - *typeLastReadCount + i) as usize] as _)?;
+        for i in 0..*type_last_read_count {
+            if *last_read == DpiTypeRead::Byte {
+                out.be_write_u8(data[(*data_index - *type_last_read_count + i) as usize] as _)?;
             } else {
-                out.be_write_i16(data[(*dataIndex - *typeLastReadCount + i) as usize])?;
+                out.be_write_i16(data[(*data_index - *type_last_read_count + i) as usize])?;
             }
         }
     }
@@ -139,34 +141,32 @@ const PUSHB: i32 = 0xb0;
 const PUSHW: i32 = 0xb8;
 
 fn _dpi_put2(
-    value: i16, out: &mut Stream, lastRead: &mut _dpi_TypeRead, typeLastReadCount: &mut u32,
-    data: &mut Vec<i16>, dataIndex: &mut u32,
+    value: i16, out: &mut Stream, last_read: &mut DpiTypeRead, type_last_read_count: &mut u32,
+    data: &mut Vec<i16>, data_index: &mut u32,
 ) -> Result<(), StreamError> {
-    let new_type = if (0..256).contains(&value) { BYTE } else { SHORT };
-    if new_type != *lastRead || *typeLastReadCount == 255 {
-        _dpi_dump2(out, lastRead, typeLastReadCount, data, dataIndex)?;
-        *lastRead = new_type;
-        *typeLastReadCount = 0 as ::core::ffi::c_uint;
+    let new_type = if (0..256).contains(&value) { DpiTypeRead::Byte } else { DpiTypeRead::Short };
+    if new_type != *last_read || *type_last_read_count == 255 {
+        _dpi_dump2(out, last_read, type_last_read_count, data, data_index)?;
+        *last_read = new_type;
+        *type_last_read_count = 0 as ::core::ffi::c_uint;
     }
-    let fresh0 = *dataIndex;
-    *dataIndex = (*dataIndex).wrapping_add(1);
+    let fresh0 = *data_index;
+    *data_index = (*data_index).wrapping_add(1);
     data[fresh0 as usize] = value;
-    *typeLastReadCount = (*typeLastReadCount).wrapping_add(1);
+    *type_last_read_count = (*type_last_read_count).wrapping_add(1);
     Ok(())
 }
 
 // http://www.w3.org/Submission/MTX/#HopCodes
-fn decode_push_instructions(sIn: &mut Stream, sOut: &mut Stream, pushCount: u32) -> Result<(), Error> {
-    let mut remaining = pushCount;
-    let mut type_last_read: _dpi_TypeRead = BYTE;
+fn decode_push_instructions(s_in: &mut Stream, s_out: &mut Stream, push_count: u32) -> Result<(), Error> {
+    let mut remaining = push_count;
+    let mut type_last_read = DpiTypeRead::Byte;
     let mut type_last_read_count = 0u32;
     let mut data_index = 0u32;
-    let mut data = vec![0i16; pushCount as _];
+    let mut data = vec![0i16; push_count as _];
 
     while remaining > 0 {
-        let mut code = sIn.be_peek_u8().map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-        let mut val = 0i16;
-        let mut prev = 0i16;
+        let code = s_in.be_peek_u8().map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
         match code {
             0xFB => {
                 // A B 0xFB C -> A B A C A
@@ -174,14 +174,15 @@ fn decode_push_instructions(sIn: &mut Stream, sOut: &mut Stream, pushCount: u32)
                     return Err(Error::CORRUPT_HOPCODE_DATA);
                 }
                 remaining -= 3;
-                prev = data[(data_index - 2) as usize];
-                code = sIn.be_read_u8()?;
-                _dpi_put2(prev, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                let prev = data[(data_index - 2) as usize];
+                // code = s_in.be_read_u8()?;
+                _ = s_in.be_read_u8()?;
+                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                val = read_255_short(sIn).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                let val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(prev, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
             }
             0xFC => {
@@ -189,36 +190,37 @@ fn decode_push_instructions(sIn: &mut Stream, sOut: &mut Stream, pushCount: u32)
                     return Err(Error::CORRUPT_HOPCODE_DATA);
                 }
                 remaining -= 5;
-                prev = data[(data_index - 2) as usize];
-                code = sIn.be_read_u8()?;
-                _dpi_put2(prev, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                let prev = data[(data_index - 2) as usize];
+                // code = s_in.be_read_u8()?;
+                _ = s_in.be_read_u8()?;
+                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                val = read_255_short(sIn).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                let mut val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(prev, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                val = read_255_short(sIn).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(prev, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                _dpi_put2(prev, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
             }
             _ => {
-                val = read_255_short(sIn).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
-                _dpi_put2(val, sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+                let val = read_255_short(s_in).map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
+                _dpi_put2(val, s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
                     .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
                 remaining -= 1;
             }
         }
     }
 
-    _dpi_dump2(sOut, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
+    _dpi_dump2(s_out, &mut type_last_read, &mut type_last_read_count, &mut data, &mut data_index)
         .map_err(|_| Error::SECOND_STREAM_INCOMPLETE)?;
     Ok(())
 }
 
-fn _dsg_make_flags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
+fn _dsg_make_flags(x: i16, y: i16, on_curve: bool, first_time: bool) -> u8 {
     const FLG_ON_CURVE: u8 = 0x1;
     const FLG_X_SHORT: u8 = 0x2;
     const FLG_Y_SHORT: u8 = 0x4;
@@ -226,11 +228,11 @@ fn _dsg_make_flags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
     const FLG_Y_SAME: u8 = 0x20;
 
     let mut ret: u8 = 0_u8;
-    if onCurve {
+    if on_curve {
         ret |= FLG_ON_CURVE;
     }
 
-    if !firstTime && x == 0 {
+    if !first_time && x == 0 {
         ret |= FLG_X_SAME;
     } else if -256 < x && x < 0 {
         ret |= FLG_X_SHORT;
@@ -238,7 +240,7 @@ fn _dsg_make_flags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
         ret |= FLG_X_SHORT | FLG_X_SAME;
     }
 
-    if !firstTime && y == 0 {
+    if !first_time && y == 0 {
         ret |= FLG_Y_SAME;
     } else if -256 < y && y < 0 {
         ret |= FLG_Y_SHORT;
@@ -250,35 +252,35 @@ fn _dsg_make_flags(x: i16, y: i16, onCurve: bool, firstTime: bool) -> u8 {
 }
 
 fn decode_simple_glyph(
-    numContours: i16, streams: &mut [Stream], out: &mut Stream, calculateBoundingBox: bool, mut minX: i16,
-    mut minY: i16, mut maxX: i16, mut maxY: i16,
+    num_contours: i16, streams: &mut [Stream], out: &mut Stream, calculate_bounding_box: bool, mut min_x: i16,
+    mut min_y: i16, mut max_x: i16, mut max_y: i16,
 ) -> Result<(), Error> {
-    if numContours == 0 {
+    if num_contours == 0 {
         return Ok(());
     }
 
     let mut bounding_box_location = None;
 
-    out.be_write_i16(numContours).map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(num_contours).map_err(|_| Error::CORRUPT_FILE)?;
 
-    if calculateBoundingBox {
+    if calculate_bounding_box {
         bounding_box_location = Some(out.pos);
         out.seek_relative_through_reserve(4 * size_of::<i16>() as isize)
             .map_err(|_| Error::CORRUPT_FILE)?;
-        minX = i16::MAX;
-        minY = i16::MAX;
-        maxX = i16::MIN;
-        maxY = i16::MIN;
+        min_x = i16::MAX;
+        min_y = i16::MAX;
+        max_x = i16::MIN;
+        max_y = i16::MIN;
     } else {
         // FIXME: why are we returning CORRUPT_FILE and not LOGIC_ERROR here?
-        out.be_write_i16(minX).map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(minY).map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(maxX).map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(maxY).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(min_x).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(min_y).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(max_x).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(max_y).map_err(|_| Error::CORRUPT_FILE)?;
     }
 
     let mut total_points: usize = 0;
-    for i in 0..numContours {
+    for i in 0..num_contours {
         if i == 0 {
             total_points = 1;
         }
@@ -327,10 +329,10 @@ fn decode_simple_glyph(
         curr_x = curr_x.wrapping_add(x_coords[i] as i32 as u32);
         curr_y = curr_y.wrapping_add(y_coords[i] as i32 as u32);
 
-        minX = minX.min(curr_x as i16);
-        maxX = maxX.max(curr_x as i16);
-        minY = minY.min(curr_y as i16);
-        maxY = maxY.max(curr_y as i16);
+        min_x = min_x.min(curr_x as i16);
+        max_x = max_x.max(curr_x as i16);
+        min_y = min_y.min(curr_y as i16);
+        max_y = max_y.max(curr_y as i16);
     }
 
     // Coordinates are known now, but we need to handle instructions before they can be output.
@@ -351,7 +353,7 @@ fn decode_simple_glyph(
             .map_err(|_| Error::CORRUPT_FILE)?;
     }
 
-    // the below will be zero if we didn't go through the if (numContours > 0) block.
+    // the below will be zero if we didn't go through the if (num_contours > 0) block.
     let unpacked_code_size = out.pos as u32 - (code_size_location + size_of::<u16>() as u32);
     // FIXME: Figure out if there is a huge savings from using the 'repeat' flag
     // and if so, use it. (but I kinda doubt there is.)
@@ -394,14 +396,14 @@ fn decode_simple_glyph(
     out.be_write_u16(unpacked_code_size as _).map_err(|_| Error::CORRUPT_FILE)?;
     out.seek_absolute_through_reserve(curr_pos).map_err(|_| Error::CORRUPT_FILE)?;
 
-    if calculateBoundingBox {
+    if calculate_bounding_box {
         let end_pos = out.pos;
         out.seek_absolute_through_reserve(bounding_box_location.unwrap())
             .map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(minX).map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(minY).map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(maxX).map_err(|_| Error::CORRUPT_FILE)?;
-        out.be_write_i16(maxY).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(min_x).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(min_y).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(max_x).map_err(|_| Error::CORRUPT_FILE)?;
+        out.be_write_i16(max_y).map_err(|_| Error::CORRUPT_FILE)?;
         out.seek_absolute_through_reserve(end_pos as _).map_err(|_| Error::CORRUPT_FILE)?;
     }
 
@@ -419,16 +421,16 @@ fn decode_composite_glyph(streams: &mut [Stream], out: &mut Stream) -> Result<()
     const FLG_HAVE_INSTR: u16 = 0x100;
 
     out.be_write_i16(-1).map_err(|_| Error::CORRUPT_FILE)?;
-    let minX = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
-    let minY = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
-    let maxX = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
-    let maxY = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
-    out.be_write_i16(minX).map_err(|_| Error::CORRUPT_FILE)?;
-    out.be_write_i16(minY).map_err(|_| Error::CORRUPT_FILE)?;
-    out.be_write_i16(maxX).map_err(|_| Error::CORRUPT_FILE)?;
-    out.be_write_i16(maxY).map_err(|_| Error::CORRUPT_FILE)?;
+    let min_x = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
+    let min_y = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
+    let max_x = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
+    let max_y = streams[0].be_read_i16().map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(min_x).map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(min_y).map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(max_x).map_err(|_| Error::CORRUPT_FILE)?;
+    out.be_write_i16(max_y).map_err(|_| Error::CORRUPT_FILE)?;
 
-    let mut flags = 0u16;
+    let mut flags: u16;
     loop {
         flags = streams[0].be_read_u16().map_err(|_| Error::CORRUPT_FILE)?;
         out.be_write_u16(flags).map_err(|_| Error::CORRUPT_FILE)?;
@@ -522,8 +524,8 @@ fn decode_glyph(streams: &mut [Stream], out: &mut Stream) -> Result<(), Error> {
 // https://developer.apple.com/fonts/TTRefMan/RM06/Chap6glyf.html
 // http://www.w3.org/Submission/MTX/#CTFGlyph
 fn populate_glyf_and_loca(
-    tables: &mut [SFNTTable], glyf: usize, loca: usize, headData: &mut TTFheadData,
-    maxpData: &mut TTFmaxpData, streams: &mut [Stream],
+    tables: &mut [SFNTTable], glyf: usize, loca: usize, head_data: &mut TtfHeadData,
+    maxp_data: &mut TtfMaxpData, streams: &mut [Stream],
 ) -> Result<(), Error> {
     let sctf = &mut streams[0];
     sctf.seek_absolute(tables[glyf].offset as _)?;
@@ -535,27 +537,27 @@ fn populate_glyf_and_loca(
     streams[2].seek_absolute(0)?;
 
     let max_simple_glyph_size = 10
-        + 2 * (maxpData.max_contours as u32)
+        + 2 * (maxp_data.max_contours as u32)
         + 2
-        + (maxpData.max_size_of_instructions as u32)
-        + (maxpData.max_points as u32 * 5);
-    let max_compound_glyph_size = 26 + (maxpData.max_size_of_instructions as u32);
+        + (maxp_data.max_size_of_instructions as u32)
+        + (maxp_data.max_points as u32 * 5);
+    let max_compound_glyph_size = 26 + (maxp_data.max_size_of_instructions as u32);
     let max_glyph_size = max_simple_glyph_size.max(max_compound_glyph_size);
-    let max_table_size = (maxpData.num_glyphs as u32) * max_glyph_size;
-    let is_short_loca = headData.index_to_loc_format == 0;
+    let max_table_size = (maxp_data.num_glyphs as u32) * max_glyph_size;
+    let is_short_loca = head_data.index_to_loc_format == 0;
 
     let mut s_out = Stream::new2(0, max_table_size as _);
     let mut s_loca_out = Stream::new2(0, 0);
 
     if is_short_loca {
-        s_loca_out.buf.reserve(2 * (maxpData.num_glyphs + 1) as usize);
+        s_loca_out.buf.reserve(2 * (maxp_data.num_glyphs + 1) as usize);
         s_loca_out.be_write_u16(0).map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
     } else {
-        s_loca_out.buf.reserve(4 * (maxpData.num_glyphs + 1) as usize);
+        s_loca_out.buf.reserve(4 * (maxp_data.num_glyphs + 1) as usize);
         s_loca_out.be_write_u32(0).map_err(|_| Error::UNKNOWN_BUFFER_WRITE_ERROR)?;
     }
 
-    for _ in 0..maxpData.num_glyphs {
+    for _ in 0..maxp_data.num_glyphs {
         // decode a glyph outline
         decode_glyph(streams, &mut s_out)?;
 

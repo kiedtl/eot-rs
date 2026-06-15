@@ -33,19 +33,19 @@ impl RUNLENGTHCOMP {
 
     // Use this method to decompress the data transparantly
     // as it goes to the memory.
-    pub fn save_bytes(&mut self, value: u8, dataOut: &mut Vec<u8>) {
+    pub fn save_bytes(&mut self, value: u8, data_out: &mut Vec<u8>) {
         self.state = match self.state {
             RunLengthCompState::Normal =>
                 if value == self.escape {
                     RunLengthCompState::SeenEscape
                 } else {
-                    dataOut.push(value);
+                    data_out.push(value);
                     self.state
                 },
             RunLengthCompState::SeenEscape => {
                 self.count = value;
                 if self.count == 0 {
-                    dataOut.push(self.escape);
+                    data_out.push(self.escape);
                     RunLengthCompState::Normal
                 } else {
                     RunLengthCompState::NeedByte
@@ -53,7 +53,7 @@ impl RUNLENGTHCOMP {
             }
             RunLengthCompState::NeedByte => {
                 for _ in 0..self.count {
-                    dataOut.push(value);
+                    data_out.push(value);
                 }
                 RunLengthCompState::Normal
             }
@@ -78,9 +78,9 @@ pub struct LZCOMP<'a> {
     pub dup6: i64,
     pub num_syms: i64,
     pub max_copy_distance: usize,
-    pub dist_ecoder: AHUFF,
-    pub len_ecoder: AHUFF,
-    pub sym_ecoder: AHUFF,
+    pub dist_ecoder: Ahuff,
+    pub len_ecoder: Ahuff,
+    pub sym_ecoder: Ahuff,
     pub bio: BITIO<'a>,
 }
 
@@ -103,12 +103,12 @@ fn set_dist_range(t: &mut LZCOMP, length: i64) {
     t.num_syms = t.dup6 + 1;
 }
 
-fn decode_length(t: &mut LZCOMP, symbol: ::core::ffi::c_int, numDistRanges: &mut i64) -> Result<i64, Error> {
+fn decode_length(t: &mut LZCOMP, symbol: ::core::ffi::c_int, num_dist_ranges: &mut i64) -> Result<i64, Error> {
     const LEN_MIN: i64 = 2;
     const BIT_RANGE: u64 = 3 - 1; /* == len_width - 1 */
 
-    let mut done: i64 = 0;
-    let mut bits: i64 = 0;
+    let mut done: i64;
+    let mut bits: i64;
     let mut first_time = symbol >= 0;
     let mut value: i64 = 0_i64;
     let mask = 1u64 << BIT_RANGE;
@@ -118,8 +118,8 @@ fn decode_length(t: &mut LZCOMP, symbol: ::core::ffi::c_int, numDistRanges: &mut
             bits = (symbol - 256) as i64;
             first_time = false;
             assert!(bits >= 0);
-            *numDistRanges = bits / (1i64 << LEN_WIDTH) + 1;
-            assert!(*numDistRanges >= 1 && *numDistRanges <= t.num_dist_ranges);
+            *num_dist_ranges = bits / (1i64 << LEN_WIDTH) + 1;
+            assert!(*num_dist_ranges >= 1 && *num_dist_ranges <= t.num_dist_ranges);
             bits %= 1i64 << LEN_WIDTH;
         } else {
             bits = t.len_ecoder.read_symbol(&mut t.bio)? as i64;
@@ -137,12 +137,12 @@ fn decode_length(t: &mut LZCOMP, symbol: ::core::ffi::c_int, numDistRanges: &mut
     Ok(value)
 }
 
-fn decode_distance(t: &mut LZCOMP, distRanges: i64) -> Result<i64, Error> {
+fn decode_distance(t: &mut LZCOMP, dist_ranges: i64) -> Result<i64, Error> {
     let mut bits: i64;
     let mut value: i64 = 0_i64;
     let dist_min: i64 = 1_i64;
     let dist_width: i64 = 3_i64;
-    for i in 0..distRanges {
+    for _ in 0..dist_ranges {
         bits = t.dist_ecoder.read_symbol(&mut t.bio)? as i64;
         value <<= dist_width;
         value |= bits;
@@ -183,11 +183,11 @@ fn initialize_model(t: &mut LZCOMP) {
 }
 
 fn decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
-    let mut symbol = 0;
+    let mut symbol;
     let mut length: usize;
     let mut distance: usize;
     let mut num_dist_ranges = 0;
-    let mut value = 0u8;
+    let mut value: u8;
     let using_run_length = t.using_run_length;
     let mut pos: usize;
 
@@ -297,7 +297,7 @@ fn decode(t: &mut LZCOMP) -> Result<Vec<u8>, Error> {
     Ok(data_out)
 }
 
-pub fn mtx_lzcomp_unpack_memory(dataIn: &[u8], version: u8) -> Result<Vec<u8>, Error> {
+pub fn mtx_lzcomp_unpack_memory(data_in: &[u8], version: u8) -> Result<Vec<u8>, Error> {
     let dist_width: i64 = 3_i64;
 
     let mut t = LZCOMP {
@@ -313,10 +313,10 @@ pub fn mtx_lzcomp_unpack_memory(dataIn: &[u8], version: u8) -> Result<Vec<u8>, E
         dup6: 0,
         num_syms: 0,
         max_copy_distance: 0x7fffffff,
-        dist_ecoder: AHUFF::new((1i64 << dist_width) as i16),
-        len_ecoder: AHUFF::new((1i64 << LEN_WIDTH) as i16),
-        sym_ecoder: AHUFF::PLACEHOLDER,
-        bio: BITIO::new(dataIn),
+        dist_ecoder: Ahuff::new((1i64 << dist_width) as i16),
+        len_ecoder: Ahuff::new((1i64 << LEN_WIDTH) as i16),
+        sym_ecoder: Ahuff::PLACEHOLDER,
+        bio: BITIO::new(data_in),
     };
 
     t.using_run_length = if version == 1 {
@@ -336,7 +336,7 @@ pub fn mtx_lzcomp_unpack_memory(dataIn: &[u8], version: u8) -> Result<Vec<u8>, E
         t.ptr1.resize(max_out_size as _, 0);
     }
 
-    t.sym_ecoder = AHUFF::new(t.num_syms as i16);
+    t.sym_ecoder = Ahuff::new(t.num_syms as i16);
 
     let data_out = decode(&mut t)?; // do the work!
     assert!(t.using_run_length || data_out.len() < max_out_size);

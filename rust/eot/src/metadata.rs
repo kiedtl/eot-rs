@@ -1,8 +1,62 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
-
 use byteorder::{LE, ReadBytesExt};
 
 use crate::core::*;
+
+#[derive(Clone)]
+#[repr(C)]
+pub struct Metadata {
+    pub total_size: u32,
+    pub version: EOTVersion,
+    pub flags: u32,
+    pub panose: [u8; 10],
+    pub charset: EOTCharset,
+    pub italic: bool,
+    pub weight: u32,
+    pub permissions: u16,
+    pub unicode_range: [u32; 4],
+    pub code_page_range: [u32; 2],
+    pub check_sum_adjustment: u32,
+    pub family_name: Vec<u16>,
+    pub style_name: Vec<u16>,
+    pub version_name: Vec<u16>,
+    pub full_name: Vec<u16>,
+    pub num_root_strings: ::core::ffi::c_uint,
+    pub font_data_size: u32,
+    pub font_data_offset: u32,
+    pub eudc_info: EUDCInfo,
+    pub do_not_use: Vec<u16>,
+}
+
+impl Metadata {
+    pub const ZERO: Metadata = Metadata {
+        total_size: 0,
+        version: 0 as EOTVersion,
+        flags: 0,
+        panose: [0; 10],
+        charset: ANSI_CHARSET,
+        italic: false,
+        weight: 0,
+        permissions: 0,
+        unicode_range: [0; 4],
+        code_page_range: [0; 2],
+        check_sum_adjustment: 0,
+        family_name: Vec::new(),
+        style_name: Vec::new(),
+        version_name: Vec::new(),
+        full_name: Vec::new(),
+        do_not_use: Vec::new(),
+        num_root_strings: 0,
+        font_data_size: 0,
+        font_data_offset: 0,
+        eudc_info: EUDCInfo {
+            exists:    false,
+            code_page: 0,
+            flags:     0,
+            font_data: Vec::new(),
+        },
+    };
+}
 
 fn skip(c: &mut Cursor<&[u8]>, amount: u16) -> Result<(), Error> {
     c.seek(SeekFrom::Current(amount as i64)).map_err(|_| Error::INSUFFICIENT_BYTES)?;
@@ -64,7 +118,7 @@ fn read_byte_array(c: &mut Cursor<&[u8]>) -> Result<Vec<u8>, Error> {
 }
 
 fn read_metadata_with_version(
-    c: &mut Cursor<&[u8]>, meta: &mut EOTMetadata, version: EOTVersion,
+    c: &mut Cursor<&[u8]>, meta: &mut Metadata, version: EOTVersion,
 ) -> Result<(), Error> {
     meta.version = version;
 
@@ -133,7 +187,7 @@ fn read_metadata_with_version(
     Ok(())
 }
 
-pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
+pub fn read_metadata(bytes: &[u8]) -> Result<Metadata, Error> {
     let mut c = Cursor::new(bytes);
     let (total_size, metadata_size, font_data_size) = read_metadata_length(&mut c)?;
 
@@ -153,7 +207,7 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
     let mut knocked_down = false;
 
     loop {
-        let mut met = EOTMetadata::ZERO;
+        let mut met = Metadata::ZERO;
         met.total_size = total_size;
         met.font_data_size = font_data_size;
         let pos = c.position() as usize;
@@ -195,7 +249,7 @@ pub fn read_metadata(bytes: &[u8]) -> Result<EOTMetadata, Error> {
 ///
 /// I'm not suggesting any system of morality is right or wrong; I'm merely asking that you reflect
 /// on it before changing anything here.
-pub fn can_legally_edit(metadata: &EOTMetadata) -> bool {
+pub fn can_legally_edit(metadata: &Metadata) -> bool {
     const EDITING_MASK: u16 = 0x8;
     metadata.permissions == 0 || ((metadata.permissions & EDITING_MASK) != 0)
 }

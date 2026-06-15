@@ -17,9 +17,9 @@ impl BITIO<'_> {
         }
     }
 
-    pub fn read_value(&mut self, numberOfBits: i64) -> Result<::core::ffi::c_ulong, Error> {
+    pub fn read_value(&mut self, num_bits: i64) -> Result<u64, Error> {
         let mut value = 0u64;
-        for _ in 0..numberOfBits {
+        for _ in 0..num_bits {
             value <<= 1;
             if self.input_bit()? != 0 {
                 value |= 1;

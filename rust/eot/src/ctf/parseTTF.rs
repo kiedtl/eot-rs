@@ -5,12 +5,12 @@ use byteorder::{BE, ReadBytesExt};
 use crate::{core::*, ctf::SFNTContainer::SFNTTable};
 
 #[derive(Copy, Clone)]
-pub struct TTFheadData {
+pub struct TtfHeadData {
     pub index_to_loc_format: i16,
 }
 
 #[derive(Copy, Clone, Default)]
-pub struct TTFmaxpData {
+pub struct TtfMaxpData {
     pub num_glyphs: u16,
     pub max_points: u16,
     pub max_contours: u16,
@@ -27,16 +27,16 @@ pub struct TTFmaxpData {
     pub max_component_depth: u16,
 }
 
-pub fn ttf_parse_head(tbl: &SFNTTable) -> Result<TTFheadData, Error> {
+pub fn ttf_parse_head(tbl: &SFNTTable) -> Result<TtfHeadData, Error> {
     if tbl.buf.len() < 52 {
         return Err(Error::CORRUPT_FILE);
     }
     let index_to_loc_format = i16::from_be_bytes([tbl.buf[50], tbl.buf[51]]);
-    Ok(TTFheadData { index_to_loc_format })
+    Ok(TtfHeadData { index_to_loc_format })
 }
 
-pub fn ttf_parse_maxp(tbl: &SFNTTable) -> Result<TTFmaxpData, Error> {
-    let mut out = TTFmaxpData::default();
+pub fn ttf_parse_maxp(tbl: &SFNTTable) -> Result<TtfMaxpData, Error> {
+    let mut out = TtfMaxpData::default();
 
     let mut c = Cursor::new(&tbl.buf);
     let version = c.read_u32::<BE>().map_err(|_| Error::CORRUPT_FILE)?;

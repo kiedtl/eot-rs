@@ -22,7 +22,7 @@ impl Node {
 const ROOT: usize = 1;
 
 #[derive(Clone)]
-pub struct AHUFF {
+pub struct Ahuff {
     tree: Vec<Node>,
     symbol_index: Vec<usize>,
     bit_count: i64,
@@ -34,8 +34,8 @@ pub struct AHUFF {
     sym_count: i64,
 }
 
-impl AHUFF {
-    pub const PLACEHOLDER: AHUFF = AHUFF {
+impl Ahuff {
+    pub const PLACEHOLDER: Ahuff = Ahuff {
         tree: Vec::new(),
         symbol_index: Vec::new(),
         bit_count: 0,
@@ -47,16 +47,16 @@ impl AHUFF {
         sym_count: 0,
     };
 
-    pub fn new(mut rangeIn: i16) -> AHUFF {
-        let mut t = AHUFF::PLACEHOLDER;
+    pub fn new(mut range_in: i16) -> Ahuff {
+        let mut t = Ahuff::PLACEHOLDER;
 
-        let range = rangeIn;
-        t.range = rangeIn as i64;
-        t.bit_count = bits_used((rangeIn - 1) as _);
+        let range = range_in;
+        t.range = range_in as i64;
+        t.bit_count = bits_used((range_in - 1) as _);
         t.bit_count2 = 0_i64;
-        if rangeIn > 256 && rangeIn < 512 {
-            rangeIn -= 256;
-            t.bit_count2 = bits_used((rangeIn - 1) as _) + 1;
+        if range_in > 256 && range_in < 512 {
+            range_in -= 256;
+            t.bit_count2 = bits_used((range_in - 1) as _) + 1;
         }
         t.max_symbol = (range - 1) as _;
         t.sym_count = 0;
@@ -115,7 +115,7 @@ impl AHUFF {
 
     pub fn read_symbol(&mut self, bio: &mut BITIO) -> Result<i16, Error> {
         let mut a = ROOT;
-        let mut symbol = 0i16;
+        let mut symbol;
         loop {
             let n = &self.tree[a];
             let bit = bio.input_bit()?;

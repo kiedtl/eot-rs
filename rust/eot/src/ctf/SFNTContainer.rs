@@ -72,8 +72,8 @@ impl SFNTContainer {
             for i in 0..ctr.tables.len() {
                 let tbl = &mut ctr.tables[i];
 
-                for iTag in 0..4 {
-                    out.be_write_u8(tbl.tag[iTag])?;
+                for i_tag in 0..4 {
+                    out.be_write_u8(tbl.tag[i_tag])?;
                 }
 
                 out.be_write_u32(tbl.checksum)?;
