@@ -132,9 +132,8 @@ fn decode_length(
         } else {
             bits = t.len_ecoder.read_symbol(&mut t.bio)? as i64;
         }
-        done =
-            (bits as ::core::ffi::c_ulong & mask == 0 as ::core::ffi::c_ulong) as ::core::ffi::c_int as i64;
-        bits = (bits as ::core::ffi::c_ulong & !mask) as i64;
+        done = (bits as u64 & mask == 0) as i64;
+        bits = (bits as u64 & !mask) as i64;
         value <<= BIT_RANGE;
         value |= bits;
         if done != 0 {
